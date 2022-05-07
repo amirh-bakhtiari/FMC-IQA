@@ -169,7 +169,7 @@ dmypy.json
 cython_debug/
 
 # Ipython files (.Rmd files are tracked instead)
-.ipynb
+*.ipynb
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
