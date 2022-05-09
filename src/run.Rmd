@@ -12,11 +12,11 @@ jupyter:
     name: python3
 ---
 
-```{python}
+```{python tags=c()}
 
 ```
 
-```{python}
+```{python tags=c()}
 
 ```
 
