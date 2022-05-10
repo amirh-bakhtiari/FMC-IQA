@@ -13,7 +13,11 @@ jupyter:
 ---
 
 ```{python tags=c()}
-
+import numpy as np
+import torch
+from torchvision import models
+from torchvision import transforms
+from pathlib import Path
 ```
 
 ```{python tags=c()}

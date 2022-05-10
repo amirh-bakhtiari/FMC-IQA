@@ -1,4 +1,4 @@
-def set_sf_model(device: torch.device) -> nn.Module:
+def set_sf_model(device: torch.device) -> torch.nn.Module:
     '''Set the model to extract both the content and style features according to the
     style transfer paper:
     
@@ -56,5 +56,7 @@ def gram_matrix(tensor):
     # calculate the gram matrix
     gram = torch.mm(tensor, tensor.t())
     
-    return gram
+    return torch.flatten(gram)
 
+def concat_gram_features():
+    
