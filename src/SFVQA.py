@@ -17,7 +17,7 @@ def set_sf_model(device: torch.device) -> torch.nn.Module:
         
     return vgg
 
-def get_features(image, model, layers=None):
+def get_frame_features(image, model, layers=None):
     """ Run an image forward through a model and get the features for 
         a set of layers. Default layers are for VGGNet matching Gatys et al (2016)
     """
@@ -27,10 +27,11 @@ def get_features(image, model, layers=None):
     if layers is None:
         layers = {'0': 'conv1_1',
                   '5': 'conv2_1', 
-                  '10': 'conv3_1', 
-                  '19': 'conv4_1',
+                  # '10': 'conv3_1', 
+                  # '19': 'conv4_1',
                   '21': 'conv4_2',  ## content representation
-                  '28': 'conv5_1'}
+                  # '28': 'conv5_1'
+                 }
         
     features = {}
     x = image
@@ -57,6 +58,5 @@ def gram_matrix(tensor):
     gram = torch.mm(tensor, tensor.t())
     
     return torch.flatten(gram)
-
-def concat_gram_features():
+        
     
