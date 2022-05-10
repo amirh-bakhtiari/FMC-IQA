@@ -25,20 +25,4 @@ def get_frames(vid_path: str, vid_pix_fmt: str = "yuv420p", frame_color_mode: st
                             outputdict={"-pix_fmt": "gray"})
     else:
         return None
-    
-
-def get_csiq_info(file_path: str) -> list:
-    '''Get the video dataset metadata file and extraxt video file names and their 
-    corresponding DMOS
-    
-    :param file_path: the path to the video dataset metadata file
-    :return: video names, DMOS
-    '''
-    with open(file_path, 'r') as f:
-        videos ,dmos = [], []
-        for line in f:
-            videos.append(line.split()[0])
-            dmos.append(line.split()[1])
-    
-    return videos, dmos
         
