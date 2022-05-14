@@ -59,9 +59,12 @@ def gram_matrix(tensor):
     
     return torch.flatten(gram)
 
-def get_video_features(video, model, device, transform):
-    '''Get an array of video frames, preprocess them, turn the features to gram matrices,
-       flatten and concatenate these matrices as the final feature of a frame
+def get_video_style_features(video, model, device, transform):
+    '''For a given array of video frames, preprocess each frame, get its specified layers' feature maps,
+       turn the feature maps of each layer into gram matrices which indicates the correlation between features
+       in individual layers, i.e. how similar the features in a single layer are. Similarities will include
+       the general colors, textures and curvatures found in that layer, according to the style transfer paper
+       by Gatys et al (2016). Finally, flatten and concatenate these matrices as the final style features of a frame.
     '''
     
     style_layers = ['conv1_1', 'conv2_1']
@@ -84,6 +87,8 @@ def get_video_features(video, model, device, transform):
         video_features.append(frame_gram_matrices)
     
     return video_features
+
+
         
         
         
