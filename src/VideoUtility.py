@@ -1,7 +1,7 @@
 import skvideo.io
 
 def get_frames(vid_path: str, vid_pix_fmt: str = "yuv420p", frame_color_mode: str = 'rgb', 
-                   height: int = 432, width: int = 768) -> list:
+                   height: int, width: int) -> generator:
     ''' Get an input path containing a video and return its frames
     
     :param path_in: path of a video to extract
@@ -16,13 +16,12 @@ def get_frames(vid_path: str, vid_pix_fmt: str = "yuv420p", frame_color_mode: st
     extension = vid_path.split('.')[-1]
     # Check the video type to set the proper params
     if extension == 'mp4':
-        return skvideo.io.vread(vid_path)
+        return skvideo.io.vreader(vid_path)
     # Otherwise check the output frame color mode for YUV videos
     elif frame_color_mode == 'rgb':
-        return skvideo.io.vread(vid_path, height, width, inputdict={"-pix_fmt": "yuv420p"})
+        return skvideo.io.vreader(vid_path, height, width, inputdict={"-pix_fmt": "yuv420p"})
     elif frame_color_mode == 'gray':
-        return skvideo.io.vread(vid_path, height, width, inputdict={"-pix_fmt": "yuv420p"},
-                            outputdict={"-pix_fmt": "gray"})
+        return skvideo.io.vreader(vid_path, height, width, as_grey=True, inputdict={"-pix_fmt": "yuv420p"})
     else:
         return None
         
