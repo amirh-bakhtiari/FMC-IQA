@@ -1,9 +1,9 @@
 def set_sf_model(device: torch.device) -> torch.nn.Module:
     '''Set the model to extract both the content and style features according to the
-    style transfer paper:
+       style transfer paper:
     
     :param device: Determines the device to be used by model ('cuda' or 'cpu')
-    
+    :return: module of the model
     '''
     
     # get the "features" portion of VGG19 (we will not need the "classifier" portion)
@@ -58,5 +58,37 @@ def gram_matrix(tensor):
     gram = torch.mm(tensor, tensor.t())
     
     return torch.flatten(gram)
+
+def get_video_features(video, model, device, transform):
+    '''Get an array of video frames, preprocess them, turn the features to gram matrices,
+       flatten and concatenate these matrices as the final feature of a frame
+    '''
+    
+    style_layers = ['conv1_1', 'conv2_1']
+    video_features = []
+    for frame in video:
+        # Convert the image array to a tensor, and go through the defined preprocessing
+        # then add the batch dimension and transfer the tensor to the GPU (if available)
+        frame = transform(frame).unsqueeze(0).to(device)
+        
+        # Get both style and content features of the frame
+        features = get_frame_features(frame, model)
+        
+        frame_gram_matrices = []
+        # Get flattened gram matrix of each frame and concatenate them as the new frame features
+        for layer in style_layers:
+            frame_gram_matrices.extend(gram_matrix(features[layer]).cpu().numpy())
+        # Check the shape of the resultant matrices of the frame
+        print(f'Concatenated flat gram matrices of a frame is of shape {np.array(frame_gram_matrices).shape}')
+        # Add the new features of a the current frame to the video frame features
+        video_features.append(frame_gram_matrices)
+    
+    return video_features
+        
+        
+        
+        
+        
+        
         
     
