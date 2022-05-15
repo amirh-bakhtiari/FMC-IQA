@@ -1,6 +1,6 @@
 def get_csiq_info(file_path: str) -> list:
-    '''Get the video dataset metadata file and extraxt video file names and their 
-    corresponding DMOS
+    '''Get CSIQ VQA dataset metadata file and extract video file names and their 
+       corresponding DMOS
     
     :param file_path: the path to the video dataset metadata file
     :return: list of video names, and their DMOS
@@ -16,7 +16,24 @@ def get_csiq_info(file_path: str) -> list:
     
     return videos, dmos
 
-   
+def get_live_info(video_file: str, dmos_file: str) -> list:
+    '''Get LIVE VQA dataset metadata files and extract video file names and their 
+       corresponding DMOS
+    
+    :param video_file: the path to the video sequence names file
+    :param dmos_file: the path to the dmos file
+    :return: list of video names, and their DMOS
+    '''
+    
+    with open(video_file, 'r') as vid_file, open(dmos_file, 'r') as dmos_file:
+        # Get the name of video sequences
+        videos = vid_file.read().split('\n')
+        # Get the DMOS of each video
+        scores = dmos_file.read().split('\n')
+        dmos = [float(score.split('\t')[0]) for score in scores]]
+    
+    return videos, dmos   
+    
 
 def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 224 framework='pytorch', **kwargs):
     '''Given the name of the video dataset, get the list of respective video names and their scores,
@@ -31,7 +48,7 @@ def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 2
     '''
 
     if dataset == 'LIVE':
-        pass
+        videos, scores = get_live_info(kwargs['video_file'], kwargs['dmos_file'])
     elif dataset == 'CSIQ':
         videos, scores = get_csiq_info(kwargs['video_file'])
         
