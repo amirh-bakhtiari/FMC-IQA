@@ -35,7 +35,7 @@ def get_live_info(video_file: str, dmos_file: str) -> list:
     return videos, dmos   
     
 
-def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 224 framework='pytorch', **kwargs):
+def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 224, framework='pytorch', **kwargs):
     '''Given the name of the video dataset, get the list of respective video names and their scores,
        and set the preprocessing method.
        

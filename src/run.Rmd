@@ -18,10 +18,42 @@ import torch
 from torchvision import models
 from torchvision import transforms
 from pathlib import Path
+
+import DatasetHandler as dh
+import SFVQA as sfv
+import VideoUtility as vu
 ```
 
 ```{python tags=c()}
-
+def get_videoset_features():
+    '''
+    '''
+    
+    # put the metadata file path of the LIVE VQA dataset
+    video_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt'
+    dmos_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_data.txt'
+    videos_dir = Path('/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD')
+    
+    # Get the list of videos and corresponding dmos and preprocessing module
+    video_list, dmos, transform = dh.prepare_videoset(dataset='LIVE', frame_size: int = 254,
+                                                  video_file=video_data, dmos_file=dmos_data)
+    
+    # Check if there is a GPU
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    # Set the frame features extractor model (VGG19)
+    model = sfv.set_sf_model(device)
+    
+    videos_frame_features = []
+    for seq in video_list:
+        # Concatenate the video sequence name to the video directory to get the full video path
+        vid_path = str(videos_dir / seq)
+        # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
+        vid_frames = vu.get_frames(vid_path, height=432, width=768)
+        # Get the features of all frames of the video
+        videos_frame_features.append(sfv.get_video_style_features(vid_frames, model, device, transform))
+    
+    return videos_frame_features
 ```
 
 ```{python}
