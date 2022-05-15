@@ -51,7 +51,8 @@ def get_videoset_features():
         # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
         vid_frames = vu.get_frames(vid_path, height=432, width=768)
         # Get the features of all frames of the video
-        videos_frame_features.append(sfv.get_video_style_features(vid_frames, model, device, transform))
+        frames_features = np.array(sfv.get_video_style_features(vid_frames, model, device, transform))
+        videos_frame_features.append(frames_features)
     
     return videos_frame_features
 ```
