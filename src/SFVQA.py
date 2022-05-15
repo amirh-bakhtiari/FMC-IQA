@@ -89,7 +89,7 @@ def get_video_style_features(video, model, device, transform):
     return video_features
 
 
-        
+       
         
         
         
