@@ -67,3 +67,9 @@ def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 2
     
     
     return videos, scores, frm_transform
+
+def live_vqa_regression():
+    '''
+    '''
+    
+    
