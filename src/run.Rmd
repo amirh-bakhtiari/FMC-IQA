@@ -20,6 +20,8 @@ from torchvision import transforms
 from pathlib import Path
 
 import DatasetHandler as dh
+import pooling
+import regression as reg
 import SFVQA as sfv
 import VideoUtility as vu
 ```
@@ -29,7 +31,7 @@ def get_videoset_features() -> list:
     '''Get the VQA dataset video names and scores, set a feature extractor model,
        get frames of each video, then get features of each frame in videos
        
-    :return: videos' frames features of dimension
+    :return: videos' frames features of dimension and videos scores (DMOS)
     '''
     
     # put the metadata file path of the LIVE VQA dataset
@@ -57,7 +59,7 @@ def get_videoset_features() -> list:
         frames_features = np.array(sfv.get_video_style_features(vid_frames, model, device, transform))
         videos_frame_features.append(frames_features)
     
-    return videos_frame_features
+    return videos_frame_features, dmos
 ```
 
 ```{python}
@@ -67,7 +69,14 @@ def get_videoset_features() -> list:
 ```{python}
 # Entry point of the program
 def main():
-    pass
+    # Get frame level features of all videos in the dataset
+    videos_feats, dmos= get_videoset_features()
+    # Pool the frame level features to get video level features
+    pooled_features = pooling.simple_pooling(videos_feats)
+    # Train a regressor using video level features and indicate how well it predicts the scores
+    # using various correlations
+    reg.live_dataset_regression(pooled_features, dmos)
+    
 ```
 
 ```{python}
