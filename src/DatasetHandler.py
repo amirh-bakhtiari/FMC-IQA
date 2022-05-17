@@ -30,7 +30,7 @@ def get_live_info(video_file: str, dmos_file: str) -> list:
         videos = vid_file.read().split('\n')
         # Get the DMOS of each video
         scores = dmos_file.read().split('\n')
-        dmos = [float(score.split('\t')[0]) for score in scores]]
+        dmos = [float(score.split('\t')[0]) for score in scores]
     
     return videos, dmos   
     
@@ -56,7 +56,7 @@ def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 2
     if framework == 'pytorch':
         # pytorch specific preprocessing
         # values of means and stds in Normalize are the ones used for ImageNet
-        frm_transform = transforms.compose([transforms.Resize(frame_size)
+        frm_transform = transforms.compose([transforms.Resize(frame_size),
                                             transforms.CenterCrop(center_crop),
                                             transforms.ToTensor(),
                                             transforms.Normalize((0.485, 0.456, 0.406),

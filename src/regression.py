@@ -1,18 +1,18 @@
 # Enable Intel(R) Extension for Scikit-learn
-from sklearnex import patch_sklearn
-patch_sklearn()
+# from sklearnex import patch_sklearn
+# patch_sklearn()
 from sklearn.model_selection import GroupShuffleSplit
-from sklearn.preprocessing import StandardScalar
+from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
 
 
-def live_dataset_regression(X: ndarray, y: ndarray):
+def live_dataset_regression(X, y):
     '''Train an SVR Using the video level features and their corresponding scores,
        predict the scores of test videos using the trained SVR. Finally calculate the
        Spearman and Pearson correlation for target and predicted scores.
        
-    :param X: video level features of all videos in the dataset
-    :param y: scores of all videos in the dataset
+    :param X: an array of video level features of all videos in the dataset
+    :param y: an array scores of all videos in the dataset
     '''
     
     video_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt'
@@ -44,7 +44,7 @@ def live_dataset_regression(X: ndarray, y: ndarray):
         X_test, y_test = X[test_idx], y[test_idx]
         
         # print the video names fallen into test split
-        for group in set(groups[test_idx])
+        for group in set(groups[test_idx]):
             print(f'video group {group} = {video_groups[group]}', end=',  ')
         
         # Feature scaling

@@ -1,4 +1,4 @@
-def set_sf_model(device: torch.device) -> torch.nn.Module:
+def set_sf_model(device):
     '''Set the model to extract both the content and style features according to the
        style transfer paper:
     
@@ -81,10 +81,15 @@ def get_video_style_features(video, model, device, transform):
         # Get flattened gram matrix of each frame and concatenate them as the new frame features
         for layer in style_layers:
             frame_gram_matrices.extend(gram_matrix(features[layer]).cpu().numpy())
-        # Check the shape of the resultant matrices of the frame
-        print(f'Concatenated flat gram matrices of a frame is of shape {np.array(frame_gram_matrices).shape}')
+       
         # Add the new features of a the current frame to the video frame features
         video_features.append(frame_gram_matrices)
+    
+    # Check the shape of each layers's features for the last frame of the video
+    for key, value in features.items():
+        print(f'Layer {key} features dimension = {value.shape}')
+    # Check the shape of the resultant matrices of the last frame
+    print(f'Concatenated Gram matrices dimension of a frame = {np.array(frame_gram_matrices).shape}')
     
     return video_features
 

@@ -1,4 +1,4 @@
-def simple_pooling(videos_features: list, pooling: str = 'max') -> ndarray:
+def simple_pooling(videos_features: list, pooling: str = 'max'):
     '''Get a list of videos with features for each frame, pool the features of all frames of 
        each video using the given method to have a single vector as the final video level features
        

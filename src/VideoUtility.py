@@ -1,7 +1,7 @@
 import skvideo.io
 
 def get_frames(vid_path: str, vid_pix_fmt: str = "yuv420p", frame_color_mode: str = 'rgb', 
-                   height: int = 0, width: int = 0) -> generator:
+                   height: int = 0, width: int = 0):
     ''' Get an input path containing a video and return its frames
     
     :param path_in: path of a video to extract

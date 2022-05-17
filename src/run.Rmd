@@ -40,7 +40,7 @@ def get_videoset_features() -> list:
     videos_dir = Path('/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD')
     
     # Get the list of videos and corresponding dmos and preprocessing module
-    video_list, dmos, transform = dh.prepare_videoset(dataset='LIVE', frame_size: int = 254,
+    video_list, dmos, transform = dh.prepare_videoset(dataset='LIVE', frame_size=254,
                                                   video_file=video_data, dmos_file=dmos_data)
     
     # Check if there is a GPU
@@ -50,7 +50,7 @@ def get_videoset_features() -> list:
     model = sfv.set_sf_model(device)
     
     videos_frame_features = []
-    for seq in video_list:
+    for seq in video_list[0:150:50]:
         # Concatenate the video sequence name to the video directory to get the full video path
         vid_path = str(videos_dir / seq)
         # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
@@ -83,4 +83,8 @@ def main():
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
     main()
+```
+
+```{python}
+
 ```
