@@ -1,4 +1,8 @@
+import numpy as np
+from PIL import Image
+import torch
 from torchvision import models
+
 
 def set_sf_model(device):
     '''Set the model to extract both the content and style features according to the
@@ -69,9 +73,12 @@ def get_video_style_features(video, model, device, transform):
        by Gatys et al (2016). Finally, flatten and concatenate these matrices as the final style features of a frame.
     '''
     
-    style_layers = ['conv1_1', 'conv2_1']
+    style_layers = ['conv1_1']
     video_features = []
     for frame in video:
+        
+        # Convert the array image to PIL image
+        frame = Image.fromarray(frame)
         # Convert the image array to a tensor, and go through the defined preprocessing
         # then add the batch dimension and transfer the tensor to the GPU (if available)
         frame = transform(frame).unsqueeze(0).to(device)
