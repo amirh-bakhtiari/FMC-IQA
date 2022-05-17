@@ -1,3 +1,5 @@
+from torchvision import transforms
+
 def get_csiq_info(file_path: str) -> list:
     '''Get CSIQ VQA dataset metadata file and extract video file names and their 
        corresponding DMOS
@@ -52,11 +54,10 @@ def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 2
     elif dataset == 'CSIQ':
         videos, scores = get_csiq_info(kwargs['video_file'])
         
-    
     if framework == 'pytorch':
         # pytorch specific preprocessing
         # values of means and stds in Normalize are the ones used for ImageNet
-        frm_transform = transforms.compose([transforms.Resize(frame_size),
+        frm_transform = transforms.Compose([transforms.Resize(frame_size),
                                             transforms.CenterCrop(center_crop),
                                             transforms.ToTensor(),
                                             transforms.Normalize((0.485, 0.456, 0.406),

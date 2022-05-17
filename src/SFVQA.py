@@ -1,3 +1,5 @@
+from torchvision import models
+
 def set_sf_model(device):
     '''Set the model to extract both the content and style features according to the
        style transfer paper:

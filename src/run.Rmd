@@ -63,10 +63,6 @@ def get_videoset_features() -> list:
 ```
 
 ```{python}
-
-```
-
-```{python}
 # Entry point of the program
 def main():
     # Get frame level features of all videos in the dataset
