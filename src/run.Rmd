@@ -25,8 +25,11 @@ import VideoUtility as vu
 ```
 
 ```{python tags=c()}
-def get_videoset_features():
-    '''
+def get_videoset_features() -> list:
+    '''Get the VQA dataset video names and scores, set a feature extractor model,
+       get frames of each video, then get features of each frame in videos
+       
+    :return: videos' frames features of dimension
     '''
     
     # put the metadata file path of the LIVE VQA dataset
