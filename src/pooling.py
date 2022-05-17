@@ -1,3 +1,5 @@
+import numpy as np
+
 def simple_pooling(videos_features: list, pooling: str = 'max'):
     '''Get a list of videos with features for each frame, pool the features of all frames of 
        each video using the given method to have a single vector as the final video level features
@@ -7,13 +9,14 @@ def simple_pooling(videos_features: list, pooling: str = 'max'):
     :return: an array of video level features of all videos
     '''
     
-    videos_features = np.array(videos_features)
+    video_level_features = []
     
-    if pooling == 'max':
-        video_level_features = np.max(videos_features, axis=1)
-    elif pooling == 'mean':
-        video_level_features = np.mean(video_features, axis=1)
-    elif pooling == 'min':
-        video_level_features = np.min(video_features, axis=1)
-        
-    return video_level_features
+    for video_features in videos_features:
+        if pooling == 'max':
+            video_level_features.append(np.max(video_features, axis=0))
+        elif pooling == 'mean':
+            video_level_features.append(np.mean(video_features, axis=0))
+        elif pooling == 'min':
+            video_level_features.append(np.min(video_features, axis=0))
+
+    return np.array(video_level_features)
