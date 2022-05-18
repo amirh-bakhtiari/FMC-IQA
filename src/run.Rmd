@@ -50,7 +50,7 @@ def get_videoset_features() -> list:
     model = sfv.set_sf_model(device)
     
     videos_frame_features = []
-    for seq in video_list[0:150:50]:
+    for seq in video_list:
         # Concatenate the video sequence name to the video directory to get the full video path
         vid_path = str(videos_dir / seq)
         # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
@@ -75,7 +75,7 @@ def main():
     
 ```
 
-```{python}
+```{python tags=c()}
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
     main()

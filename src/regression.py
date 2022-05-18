@@ -1,10 +1,14 @@
 # Enable Intel(R) Extension for Scikit-learn
 # from sklearnex import patch_sklearn
 # patch_sklearn()
+import numpy as np
+from scipy.stats import spearmanr
+from scipy.stats import pearsonr
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
 
+import DatasetHandler as dh
 
 def live_dataset_regression(X, y):
     '''Train an SVR Using the video level features and their corresponding scores,
@@ -21,7 +25,7 @@ def live_dataset_regression(X, y):
     video_list, _ = dh.get_live_info(video_data, dmos_data)
     
     # Turn y into a 2D array to match StandardScalar() input
-    y = y.reshape(-1, 1)
+    y = np.array(y).reshape(-1, 1)
     
     # There are 10 pristine videos in LIVE VQA dataset and 15 different distorted videos are made from each,
     # totally 150 videos. Divide the video features into 10 groups in orders, so that the same group will not
@@ -48,8 +52,8 @@ def live_dataset_regression(X, y):
             print(f'video group {group} = {video_groups[group]}', end=',  ')
         
         # Feature scaling
-        sc_X = StandardScalar()
-        sc_y = StandardScalar()
+        sc_X = StandardScaler()
+        sc_y = StandardScaler()
         
         X_train = sc_X.fit_transform(X_train)
         X_test = sc_X.transform(X_test)
@@ -59,19 +63,23 @@ def live_dataset_regression(X, y):
         regressor = SVR(kernel='rbf')
         
         # Train the regresoor model
-        regressor.fit(X_train, y_train)
+        regressor.fit(X_train, y_train.squeeze())
         
         # Predict the scores for X_test videos features
         y_pred = regressor.predict(X_test)
+        # Turn y_pred into a 2D array to match StandardScalar() input
+        y_pred = y_pred.reshape(-1, 1)
+        
+        y_test = y_test.reshape(-1, 1)
         
         # Inverse transform the predicted values to get the real values
         y_pred = sc_y.inverse_transform(y_pred)
         
         # Calculate the Spearman rank-order correlation
-        coef, p = spearmanr(y_test, y_pred)
+        coef, p = spearmanr(y_test.squeeze(), y_pred.squeeze())
         
         # Calculate the Pearson correlation
-        corr, _ = pearsonr(y_test, y_pred)
+        corr, _ = pearsonr(y_test.squeeze(), y_pred.squeeze())
         
         SROCC_coef.append(coef)
         SROCC_p.append(p)
@@ -79,6 +87,12 @@ def live_dataset_regression(X, y):
         
         print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
         print('*' * 50)
+        
+    # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
+    with np.printoptions(precision=4, suppress=True):
+        print(f'SROCC_coef = {np.array(SROCC_coef)}')
+        print(f'SROCC_p = {np.array(SROCC_p)}')
+        print(f'PLCC = {np.array(PLCC)}')
         
         
         
