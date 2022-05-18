@@ -63,10 +63,44 @@ def get_videoset_features() -> list:
 ```
 
 ```{python}
+def load_save_features(feat_path, scores_path, features=None, scores=None, mode='save'):
+    '''Load or save features
+    
+    :param feat_path: path to load from or save to the features
+    :param scores_path: path to load from or save to the video scores
+    :param features: features to be saved
+    :param scores: scores to be saved
+    :param mode: 'save' or 'load'
+    :return: if mode is load, return features and scores
+    '''
+    
+    if mode == 'save':
+        if features is None or scores is None:
+            return None
+        else:
+            np.save(feat_path, np.array(features))
+            np.save(scores_path, scores)
+            
+    elif mode == 'load':
+        return np.load(feat_path, allow_pickle=True), np.load(scores_path)
+    else:
+        return None
+```
+
+```{python}
 # Entry point of the program
-def main():
+def main(mode):
+    '''Run the whole process of VQA
+    :param mode: 'save' if features have not already been extracted, 'load' otherwise
+    '''
     # Get frame level features of all videos in the dataset
-    videos_feats, dmos= get_videoset_features()
+    if mode == 'save':
+        videos_feats, dmos= get_videoset_features()
+    # Save or Load the model
+    if mode == 'save':
+        load_save_features('features.npy', 'scores.npy', features=videos_feats, scores=dmos, mode=mode)
+    elif mode == 'load':
+        videos_feats, dmos = load_save_features('features.npy', 'scores.npy', mode=mode)
     # Pool the frame level features to get video level features
     pooled_features = pooling.simple_pooling(videos_feats)
     # Train a regressor using video level features and indicate how well it predicts the scores
@@ -78,7 +112,7 @@ def main():
 ```{python tags=c()}
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
-    main()
+    main('save')
 ```
 
 ```{python}
