@@ -49,9 +49,13 @@ def get_frame_features(image, model, layers=None):
             
     return features
 
-def gram_matrix(tensor):
+def gram_matrix(tensor, flat=True):
     """ Calculate the Gram Matrix of a given tensor 
         Gram Matrix: https://en.wikipedia.org/wiki/Gramian_matrix
+        
+        :param tensor: input tensor
+        :param flat: flatten the rsultant matrix if'True',
+        :return: Gram Matrix
     """
     
     # get the batch_size, depth, height, and width of the Tensor
@@ -63,7 +67,11 @@ def gram_matrix(tensor):
     # calculate the gram matrix
     gram = torch.mm(tensor, tensor.t())
     
-    return torch.flatten(gram)
+    
+    if flat == 'True':
+        return torch.flatten(gram)
+    else:
+        return gram
 
 def get_video_style_features(video, model, device, transform):
     '''For a given array of video frames, preprocess each frame, get its specified layers' feature maps,
