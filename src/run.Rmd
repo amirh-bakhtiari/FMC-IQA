@@ -65,7 +65,7 @@ def get_videoset_features() -> list:
         # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
         vid_frames = vu.get_frames(vid_path, height=432, width=768)
         # Get the features of all frames of the video
-        frames_features = np.array(sfv.get_video_style_features(vid_frames, model, layers, device, transform))
+        frames_features = np.array(sfv.get_video_style_features(vid_frames, model, device, transform, layers))
         videos_frame_features.append(frames_features)
     
     return videos_frame_features, dmos
@@ -118,7 +118,7 @@ def main(mode):
     
 ```
 
-```{python tags=c(), jupyter={'outputs_hidden': True}}
+```{python tags=c()}
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
     main('save')

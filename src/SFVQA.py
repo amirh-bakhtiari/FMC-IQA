@@ -73,7 +73,7 @@ def gram_matrix(tensor, flat=True):
     else:
         return gram
 
-def get_video_style_features(video, model, layers: dict = None, device, transform):
+def get_video_style_features(video, model, device, transform, layers: dict = None):
     '''For a given array of video frames, preprocess each frame, get its specified layers' feature maps,
        turn the feature maps of each layer into gram matrices which indicates the correlation between features
        in individual layers, i.e. how similar the features in a single layer are. Similarities will include
