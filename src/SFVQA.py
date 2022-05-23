@@ -33,10 +33,10 @@ def get_frame_features(image, model, layers=None):
     if layers is None:
         layers = {'0': 'conv1_1',
                   '5': 'conv2_1', 
-                  # '10': 'conv3_1', 
-                  # '19': 'conv4_1',
+                  '10': 'conv3_1', 
+                  '19': 'conv4_1',
                   '21': 'conv4_2',  ## content representation
-                  # '28': 'conv5_1'
+                  '28': 'conv5_1'
                  }
         
     features = {}
@@ -73,15 +73,29 @@ def gram_matrix(tensor, flat=True):
     else:
         return gram
 
-def get_video_style_features(video, model, device, transform):
+def get_video_style_features(video, model, layers: dict = None, device, transform):
     '''For a given array of video frames, preprocess each frame, get its specified layers' feature maps,
        turn the feature maps of each layer into gram matrices which indicates the correlation between features
        in individual layers, i.e. how similar the features in a single layer are. Similarities will include
        the general colors, textures and curvatures found in that layer, according to the style transfer paper
        by Gatys et al (2016). Finally, flatten and concatenate these matrices as the final style features of a frame.
+       
+    :param video: an array of video frames
+    :param model: feature extractor model
+    :param layers: layers to extract features from
+    :param device: 'torch.cuda' or 'torch.cpu'
+    :param transform: torchvision preprocessing pipeline
+    :return: an array of concatenated gram matrices for each frame in video
     '''
+    if layers is None:
+        layers = {'0': 'conv1_1',
+                  '5': 'conv2_1', 
+                  '10': 'conv3_1', 
+                  '19': 'conv4_1',
+                  '28': 'conv5_1'
+                 }
+        
     
-    style_layers = ['conv1_1']
     video_features = []
     for frame in video:
         
@@ -91,13 +105,13 @@ def get_video_style_features(video, model, device, transform):
         # then add the batch dimension and transfer the tensor to the GPU (if available)
         frame = transform(frame).unsqueeze(0).to(device)
         
-        # Get both style and content features of the frame
-        features = get_frame_features(frame, model)
+        # Get features maps of all frames from the specified layers
+        features = get_frame_features(frame, model, layers)
         
         frame_gram_matrices = []
         # Get flattened gram matrix of each frame and concatenate them as the new frame features
-        for layer in style_layers:
-            frame_gram_matrices.extend(gram_matrix(features[layer]).cpu().numpy())
+        for feature_maps in features.values():
+            frame_gram_matrices.extend(gram_matrix(feature_maps).cpu().numpy())
        
         # Add the new features of a the current frame to the video frame features
         video_features.append(frame_gram_matrices)
