@@ -68,7 +68,7 @@ def gram_matrix(tensor, flat=True):
     gram = torch.mm(tensor, tensor.t())
     
     
-    if flat == 'True':
+    if flat == True:
         return torch.flatten(gram)
     else:
         return gram
@@ -87,6 +87,8 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
     :param transform: torchvision preprocessing pipeline
     :return: an array of concatenated gram matrices for each frame in video
     '''
+    
+    # Determine the layers to get style features from (style feats indicate color, texture and curvatures in an image)
     if layers is None:
         layers = {'0': 'conv1_1',
                   '5': 'conv2_1', 
