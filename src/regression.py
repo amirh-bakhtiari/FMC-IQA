@@ -1,6 +1,11 @@
 # Enable Intel(R) Extension for Scikit-learn
 # from sklearnex import patch_sklearn
 # patch_sklearn()
+import tensorflow
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras import optimizers
 import numpy as np
 from scipy.stats import spearmanr
 from scipy.stats import pearsonr
@@ -11,14 +16,16 @@ from sklearn.svm import SVR
 import DatasetHandler as dh
 
 
-def nn_regressor(input_size: int):
+def nn_regressor(X_train, y_train):
     '''Use a multi layer neural network as a regressor
     
-    :param input_size: dimension of input samples
-    :return: regressor model
+    :param X_train: input samples' features
+    :param y_train: target scores
+    :return: a trained regressor model and the training history
     '''
+    input_size = X_train.shape[1]
     
-    model = models.Sequential()
+    model = Sequential()
     model.add(Dense(4096, kernel_initializer='normal', activation='relu', input_shape=(input_size,)))#layer 1
     model.add(BatchNormalization())
     model.add(Dense(2048, kernel_initializer='normal', activation='relu'))#layer 2
@@ -39,20 +46,23 @@ def nn_regressor(input_size: int):
     model.add(Dense(1, kernel_initializer='normal', activation='linear'))#layer 7
     
     
-    callback = keras.callbacks.EarlyStopping(monitor='val_loss',min_delta=0,patience=5,verbose=1,mode="min",baseline=None,restore_best_weights=True)
+    callback = tensorflow.keras.callbacks.EarlyStopping(monitor='val_loss',min_delta=0,patience=5,verbose=1,mode="min",baseline=None,restore_best_weights=True)
     model.compile(optimizer= optimizers.Adam(learning_rate=4e-5),loss='mean_absolute_error', metrics=['mean_absolute_error'])
     
-    return model
+    history = model.fit(X_train, y_train, epochs=100, batch_size=8, validation_split=0.1, callbacks=[callback])
+    
+    return model, callback
     
     
 
-def live_dataset_regression(X, y):
+def live_dataset_regression(X, y, regression='svr'):
     '''Train an SVR Using the video level features and their corresponding scores,
        predict the scores of test videos using the trained SVR. Finally calculate the
        Spearman and Pearson correlation for target and predicted scores.
        
     :param X: an array of video level features of all videos in the dataset
     :param y: an array scores of all videos in the dataset
+    :param regression: 'svr' for SVR or 'nn' for multi layer neural network
     '''
     
     video_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt'
@@ -95,11 +105,15 @@ def live_dataset_regression(X, y):
         X_test = sc_X.transform(X_test)
         y_train = sc_y.fit_transform(y_train)
         
-        # Set the regressor to SVR
-        regressor = SVR(kernel='rbf')
-        
-        # Train the regresoor model
-        regressor.fit(X_train, y_train.squeeze())
+        if regression == 'svr':
+            # Set the regressor to SVR
+            regressor = SVR(kernel='rbf')
+            # Train the regresoor model
+            regressor.fit(X_train, y_train.squeeze())
+        elif regression == 'nn':
+            # Set the regressor to neural network
+            regressor, _ = nn_regressor(X_train, y_train.squeeze())
+            
         
         # Predict the scores for X_test videos features
         y_pred = regressor.predict(X_test)

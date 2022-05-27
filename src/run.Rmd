@@ -114,7 +114,7 @@ def main(mode):
     pooled_features = pooling.simple_pooling(videos_feats)
     # Train a regressor using video level features and indicate how well it predicts the scores
     # using various correlations
-    reg.live_dataset_regression(pooled_features, dmos)
+    reg.live_dataset_regression(pooled_features, dmos, regression='nn')
     
 ```
 
