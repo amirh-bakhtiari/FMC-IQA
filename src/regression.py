@@ -10,6 +10,42 @@ from sklearn.svm import SVR
 
 import DatasetHandler as dh
 
+
+def nn_regressor(input_size: int):
+    '''Use a multi layer neural network as a regressor
+    
+    :param input_size: dimension of input samples
+    :return: regressor model
+    '''
+    
+    model = models.Sequential()
+    model.add(Dense(4096, kernel_initializer='normal', activation='relu', input_shape=(input_size,)))#layer 1
+    model.add(BatchNormalization())
+    model.add(Dense(2048, kernel_initializer='normal', activation='relu'))#layer 2
+    #model.add(BatchNormalization())
+    model.add(Dropout(0.2))
+    model.add(Dense(1024, kernel_initializer='normal', activation='relu'))#layer 3
+    model.add(Dropout(0.2))
+
+    model.add(Dense(512, kernel_initializer='normal', activation='relu'))#layer 4
+    model.add(Dropout(0.2))
+
+    model.add(Dense(256, kernel_initializer='normal', activation='relu'))#layer 5
+    model.add(Dropout(0.2))
+
+    model.add(Dense(128, kernel_initializer='normal', activation='relu'))#layer 6
+    model.add(Dropout(0.2))
+
+    model.add(Dense(1, kernel_initializer='normal', activation='linear'))#layer 7
+    
+    
+    callback = keras.callbacks.EarlyStopping(monitor='val_loss',min_delta=0,patience=5,verbose=1,mode="min",baseline=None,restore_best_weights=True)
+    model.compile(optimizer= optimizers.Adam(learning_rate=4e-5),loss='mean_absolute_error', metrics=['mean_absolute_error'])
+    
+    return model
+    
+    
+
 def live_dataset_regression(X, y):
     '''Train an SVR Using the video level features and their corresponding scores,
        predict the scores of test videos using the trained SVR. Finally calculate the
