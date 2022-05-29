@@ -1,6 +1,7 @@
 # Enable Intel(R) Extension for Scikit-learn
 # from sklearnex import patch_sklearn
 # patch_sklearn()
+import matplotlib.pyplot as plt
 import tensorflow
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
@@ -29,7 +30,7 @@ def nn_regressor(X_train, y_train):
     model.add(Dense(4096, kernel_initializer='normal', activation='relu', input_shape=(input_size,)))#layer 1
     model.add(BatchNormalization())
     model.add(Dense(2048, kernel_initializer='normal', activation='relu'))#layer 2
-    #model.add(BatchNormalization())
+    # model.add(BatchNormalization())
     model.add(Dropout(0.2))
     model.add(Dense(1024, kernel_initializer='normal', activation='relu'))#layer 3
     model.add(Dropout(0.2))
@@ -47,11 +48,11 @@ def nn_regressor(X_train, y_train):
     
     
     callback = tensorflow.keras.callbacks.EarlyStopping(monitor='val_loss',min_delta=0,patience=5,verbose=1,mode="min",baseline=None,restore_best_weights=True)
-    model.compile(optimizer= optimizers.Adam(learning_rate=4e-5),loss='mean_absolute_error', metrics=['mean_absolute_error'])
+    model.compile(optimizer= optimizers.Adam(learning_rate=4e-5),loss='mean_squared_error', metrics=['mean_squared_error'])
     
-    history = model.fit(X_train, y_train, epochs=100, batch_size=8, validation_split=0.1, callbacks=[callback])
+    history = model.fit(X_train, y_train, epochs=50, batch_size=8, validation_split=0.1, verbose=0, callbacks=[callback])
     
-    return model, callback
+    return model, history
     
     
 
@@ -112,7 +113,17 @@ def live_dataset_regression(X, y, regression='svr'):
             regressor.fit(X_train, y_train.squeeze())
         elif regression == 'nn':
             # Set the regressor to neural network
-            regressor, _ = nn_regressor(X_train, y_train.squeeze())
+            tensorflow.keras.backend.clear_session()
+            regressor, history = nn_regressor(X_train, y_train.squeeze())
+            
+            # plt.figure(figsize=(10, 5))
+            # plt.plot(history.history['loss'], label='Loss')
+            # plt.plot(history.history['val_loss'], label=' Val Loss')
+            # plt.xlabel('Epoch')
+            # plt.ylabel('Loss')
+            # plt.title('Model Loss')
+            # plt.legend(loc=0)
+            # plt.show()
             
         
         # Predict the scores for X_test videos features
@@ -141,9 +152,10 @@ def live_dataset_regression(X, y, regression='svr'):
     # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
     with np.printoptions(precision=4, suppress=True):
         print(f'SROCC_coef = {np.array(SROCC_coef)}')
+        print(f'SROCC_coefs average = {np.mean(np.abs(np.array(SROCC_coef)))}')
         print(f'SROCC_p = {np.array(SROCC_p)}')
         print(f'PLCC = {np.array(PLCC)}')
-        
+        print(f'PLCCs average = {np.mean(np.abs(np.array(PLCC)))}')
         
         
         
