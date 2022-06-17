@@ -35,6 +35,24 @@ def get_live_info(video_file: str, dmos_file: str) -> list:
         dmos = [float(score.split('\t')[0]) for score in scores]
     
     return videos, dmos   
+
+def get_konvid1k_info(file_path):
+    '''Get Konvid1K VQA dataset data files and extract video file names and their
+       correspondinf MOS ranging from 1 to 5
+       
+    :param file_path: the path to dataset info file
+    :return: video sequence names and their MOS
+    '''
+    
+    # Read the dataframe of the dataset which includes the video names and their MOS
+    df = pd.read_csv(file_path)
+    videos = df['flickr_id'].values
+    mos = df['mos'].values
+    
+    # Convert the video names to string and concatanate the mp4 extension to names
+    videos = (str(video) + '.mp4' for video in videos)
+    
+    return videos, mos
     
 
 def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 224, framework='pytorch', **kwargs):
@@ -49,10 +67,12 @@ def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 2
     :return: list of video names, their scores and the preprocessing module
     '''
 
-    if dataset == 'LIVE':
+    if dataset.upper() == 'LIVE':
         videos, scores = get_live_info(kwargs['video_file'], kwargs['dmos_file'])
-    elif dataset == 'CSIQ':
+    elif dataset.upper() == 'CSIQ':
         videos, scores = get_csiq_info(kwargs['video_file'])
+    elif dataset.upper() == 'KONVID1K':
+        videos, scores = get_konvid1k_info(kwargs['video_file'])
         
     if framework == 'pytorch':
         # pytorch specific preprocessing
