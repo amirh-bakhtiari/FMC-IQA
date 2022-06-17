@@ -51,8 +51,8 @@ def get_videoset_features() -> list:
     
     # Specify the layers to get style features from the feature extractor model
     layers = {
-              '0': 'conv1_1',
-              # '5': 'conv2_1', 
+              # '0': 'conv1_1',
+              '5': 'conv2_1', 
               # '10': 'conv3_1', 
               # '19': 'conv4_1',
               # '28': 'conv5_1'
@@ -65,7 +65,8 @@ def get_videoset_features() -> list:
         # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
         vid_frames = vu.get_frames(vid_path, height=432, width=768)
         # Get the features of all frames of the video
-        frames_features = np.array(sfv.get_video_style_features(vid_frames, model, device, transform, layers))
+        frames_features = sfv.get_video_style_features(vid_frames, model, device, transform, layers)
+        frames_features = np.array(frames_features)
         videos_frame_features.append(frames_features)
     
     return videos_frame_features, dmos
@@ -117,10 +118,10 @@ def main(mode):
     
 ```
 
-```{python tags=c(), jupyter={'outputs_hidden': True}}
+```{python tags=c()}
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
-    main('load')
+    main('save')
 ```
 
 ```{python}

@@ -73,7 +73,7 @@ def gram_matrix(tensor, flat=True):
     else:
         return gram
 
-def get_video_style_features(video, model, device, transform, layers: dict = None):
+def get_video_style_features(video, model, device, transform, layers: dict = None, hist_feat=False, bins=10):
     '''For a given array of video frames, preprocess each frame, get its specified layers' feature maps,
        turn the feature maps of each layer into gram matrices which indicates the correlation between features
        in individual layers, i.e. how similar the features in a single layer are. Similarities will include
@@ -85,6 +85,8 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
     :param layers: layers to extract features from
     :param device: 'torch.cuda' or 'torch.cpu'
     :param transform: torchvision preprocessing pipeline
+    :param hist_feat: if True, get the histogram of the Gram matrices
+    :param bins: number of bins for histogram
     :return: an array of concatenated gram matrices for each frame in video
     '''
     
@@ -116,13 +118,18 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
             frame_gram_matrices.extend(gram_matrix(feature_maps).cpu().numpy())
        
         # Add the new features of a the current frame to the video frame features
-        video_features.append(frame_gram_matrices)
+        if hist_feat:
+            # Get the histogram of the Gram matrices of a frame as frame-level features
+            video_features.append(np.histogram(frame_gram_matrices, bins=bins)[0])
+        else:
+            # Get the Gram matrices of a frame as frame-level features
+            video_features.append(frame_gram_matrices)
     
     # Check the shape of each layers's features for the last frame of the video
     for key, value in features.items():
         print(f'Layer {key} features dimension = {value.shape}')
-    # Check the shape of the resultant matrices of the last frame
-    print(f'Concatenated Gram matrices dimension of a frame = {np.array(frame_gram_matrices).shape}')
+    # Check the shape of the resultant features of the last frame
+    print(f'Concatenated Gram matrices dimension of a frame = {np.array(video_features[-1]).shape}')
     
     return video_features
 
