@@ -10,6 +10,7 @@ from tensorflow.keras import optimizers
 import numpy as np
 from scipy.stats import spearmanr
 from scipy.stats import pearsonr
+from sklearn.model_selection import KFold
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
@@ -108,24 +109,14 @@ def live_dataset_regression(X, y, regression='svr'):
         
         if regression == 'svr':
             # Set the regressor to SVR
-            regressor = SVR(kernel='rbf')
+            regressor = SVR(kernel='rbf', epsilon=0.3)
             # Train the regresoor model
             regressor.fit(X_train, y_train.squeeze())
         elif regression == 'nn':
             # Set the regressor to neural network
             tensorflow.keras.backend.clear_session()
             regressor, history = nn_regressor(X_train, y_train.squeeze())
-            
-            # plt.figure(figsize=(10, 5))
-            # plt.plot(history.history['loss'], label='Loss')
-            # plt.plot(history.history['val_loss'], label=' Val Loss')
-            # plt.xlabel('Epoch')
-            # plt.ylabel('Loss')
-            # plt.title('Model Loss')
-            # plt.legend(loc=0)
-            # plt.show()
-            
-        
+
         # Predict the scores for X_test videos features
         y_pred = regressor.predict(X_test)
         # Turn y_pred into a 2D array to match StandardScalar() input
@@ -159,5 +150,76 @@ def live_dataset_regression(X, y, regression='svr'):
         
         
         
+def konvid1k_dataset_regression(X, y, regression='svr'):
+    '''
+    '''
     
+    SROCC_coef, SROCC_p, PLCC = [], [], []
+    # Repeat K-fold cross validation 10 times
+    for _ in range(10):
+        
+        # Use K-Fold Cross Validation for evaluation
+        kfold = KFold(n_splits=5, shuffle=True)
+        
+        for train_idx, test_idx in kfold.split(X):
+            print(f'Test index = {test_idx}')
+            X_train, X_test = X[train_idx], X[test_idx]
+            y_train, y_test = y[train_idx], y[test_idx]
+            
+            # Feature Scaling
+            sc_X = StandardScaler()
+            sc_y = StandardScaler()
+            
+            X_train = sc_X.fit_transform(X_train)
+            X_test = sc_X.transform(X_test)
+            y_train = sc_y.fit_transform(y_train)
+            
+            if regression.lower() == 'svr':
+                # Set the regressor to SVR
+                regressor = SVR(kernel='rbf', epsilon=0.3)
+                # Train the SVR
+                regressor.fit(X_train, y_train.squeeze())
+            elif regression.lower() == 'nn':
+                # Set the regressor to neural network
+                tensorflow.keras.backend.clear_session()
+                regressor, history = nn_regressor(X_train, y_train.squeeze())
+                
+            # Predict the scores for X_test videos features
+            y_pred = regressor.predict(X_test)
+            
+            
+            # Turn y_pred into a 2D array to match StandardScalar() input
+            y_pred = y_pred.reshape(-1, 1)
+            y_test = y_test.reshape(-1, 1)
+            # Reverse the transform to get the real y_pred
+            y_pred = sc_y.inverse_transform(y_pred)
+            
+            # Calculate the Spearman rank-order correlation
+            coef, p = spearmanr(y_test.squeeze(), y_pred.squeeze())
+
+            # Calculate the Pearson correlation
+            corr, _ = pearsonr(y_test.squeeze(), y_pred.squeeze())
+
+            SROCC_coef.append(coef)
+            SROCC_p.append(p)
+            PLCC.append(corr)
+
+            print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
+            print('*' * 50)
+
+    # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
+    with np.printoptions(precision=4, suppress=True):
+        print(f'SROCC_coef = {np.array(SROCC_coef)}')
+        print(f'SROCC_coefs average = {np.mean(np.abs(np.array(SROCC_coef)))}')
+        print(f'SROCC_p = {np.array(SROCC_p)}')
+        print(f'PLCC = {np.array(PLCC)}')
+        print(f'PLCCs average = {np.mean(np.abs(np.array(PLCC)))}')
+                
+            
+            
+            
+            
+            
+            
+            
     
