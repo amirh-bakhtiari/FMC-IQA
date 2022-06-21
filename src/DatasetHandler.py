@@ -1,3 +1,4 @@
+import pandas as pd
 from torchvision import transforms
 
 def get_csiq_info(file_path: str) -> list:

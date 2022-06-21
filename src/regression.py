@@ -8,8 +8,10 @@ from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras import optimizers
 import numpy as np
-from scipy.stats import spearmanr
-from scipy.stats import pearsonr
+# from scipy.stats import spearmanr
+# from scipy.stats import pearsonr
+from scipy.stats.mstats import spearmanr
+from scipy.stats.mstats import pearsonr
 from sklearn.model_selection import KFold
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
@@ -57,14 +59,15 @@ def nn_regressor(X_train, y_train):
     
     
 
-def live_dataset_regression(X, y, regression='svr'):
-    '''Train an SVR Using the video level features and their corresponding scores,
-       predict the scores of test videos using the trained SVR. Finally calculate the
-       Spearman and Pearson correlation for target and predicted scores.
+def live_dataset_regression(X, y, regression_method='svr'):
+    '''Train an SVR Using the video level features and their corresponding scores from
+       LIVE VQA dataset, predict the scores of test videos using the trained SVR. 
+       Finally calculate the SROCC & PLCC.
        
     :param X: an array of video level features of all videos in the dataset
     :param y: an array scores of all videos in the dataset
-    :param regression: 'svr' for SVR or 'nn' for multi layer neural network
+    :param regression_method: 'svr' for SVR or 'nn' for multi layer neural network
+    :return: SROCC_coef, SROCC_p, PLCC
     '''
     
     video_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt'
@@ -107,12 +110,12 @@ def live_dataset_regression(X, y, regression='svr'):
         X_test = sc_X.transform(X_test)
         y_train = sc_y.fit_transform(y_train)
         
-        if regression == 'svr':
+        if regression_method == 'svr':
             # Set the regressor to SVR
             regressor = SVR(kernel='rbf', epsilon=0.3)
             # Train the regresoor model
             regressor.fit(X_train, y_train.squeeze())
-        elif regression == 'nn':
+        elif regression_method == 'nn':
             # Set the regressor to neural network
             tensorflow.keras.backend.clear_session()
             regressor, history = nn_regressor(X_train, y_train.squeeze())
@@ -140,19 +143,22 @@ def live_dataset_regression(X, y, regression='svr'):
         print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
         print('*' * 50)
         
-    # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
-    with np.printoptions(precision=4, suppress=True):
-        print(f'SROCC_coef = {np.array(SROCC_coef)}')
-        print(f'SROCC_coefs average = {np.mean(np.abs(np.array(SROCC_coef)))}')
-        print(f'SROCC_p = {np.array(SROCC_p)}')
-        print(f'PLCC = {np.array(PLCC)}')
-        print(f'PLCCs average = {np.mean(np.abs(np.array(PLCC)))}')
+    return SROCC_coef, SROCC_p, PLCC
         
         
         
-def konvid1k_dataset_regression(X, y, regression='svr'):
+def konvid1k_dataset_regression(X, y, regression_method='svr'):
+    '''Train an SVR Using the video level features and their corresponding scores from
+       Konvid1k VQA dataset, predict the scores of test videos using the trained SVR. 
+       Finally calculate the SROCC & PLCC.
+    
+    :param X: an array of video level features of all videos in the dataset
+    :param y: an array scores of all videos in the dataset
+    :param regression_method: 'svr' for SVR or 'nn' for multi layer neural network
+    :return: SROCC_coef, SROCC_p, PLCC 
     '''
-    '''
+    # Turn y into a 2D array to match StandardScalar() input
+    y = np.array(y).reshape(-1, 1)
     
     SROCC_coef, SROCC_p, PLCC = [], [], []
     # Repeat K-fold cross validation 10 times
@@ -174,12 +180,12 @@ def konvid1k_dataset_regression(X, y, regression='svr'):
             X_test = sc_X.transform(X_test)
             y_train = sc_y.fit_transform(y_train)
             
-            if regression.lower() == 'svr':
+            if regression_method.lower() == 'svr':
                 # Set the regressor to SVR
                 regressor = SVR(kernel='rbf', epsilon=0.3)
                 # Train the SVR
                 regressor.fit(X_train, y_train.squeeze())
-            elif regression.lower() == 'nn':
+            elif regression_method.lower() == 'nn':
                 # Set the regressor to neural network
                 tensorflow.keras.backend.clear_session()
                 regressor, history = nn_regressor(X_train, y_train.squeeze())
@@ -199,14 +205,41 @@ def konvid1k_dataset_regression(X, y, regression='svr'):
 
             # Calculate the Pearson correlation
             corr, _ = pearsonr(y_test.squeeze(), y_pred.squeeze())
-
+          
             SROCC_coef.append(coef)
             SROCC_p.append(p)
             PLCC.append(corr)
 
             print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
             print('*' * 50)
-
+            
+            
+            fig, ax = plt.subplots(1, 1, figsize=(20, 10))
+            ax.scatter(y_test.squeeze(), y_pred.squeeze());
+            ax.set_xlabel('Ground-truth MOS')
+            ax.set_ylabel('Predicted Score')
+            ax.set_title(f'SROCC = {coef:.4f}')
+            fig.savefig(f'{len(SROCC_coef)}.png')
+        
+    return SROCC_coef, SROCC_p, PLCC
+    
+        
+def regression(X, y, regression_method='svr', dataset='LIVE'):
+    '''Get video features and scores and call the respective regressor according to the dataset name
+    
+    :param X: an array of video level features of all videos in the dataset
+    :param y: an array scores of all videos in the dataset
+    :param regression_method: 'svr' for SVR or 'nn' for multi layer neural network
+    '''
+    
+    print(f'{X.shape = } {y.shape = }')
+    
+    if dataset.upper() == 'LIVE':
+        SROCC_coef, SROCC_p, PLCC = live_dataset_regression(X, y, regression_method='svr')
+    elif dataset.upper() == 'KONVID1K':
+        SROCC_coef, SROCC_p, PLCC = konvid1k_dataset_regression(X, y, regression_method='svr')
+        
+    
     # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
     with np.printoptions(precision=4, suppress=True):
         print(f'SROCC_coef = {np.array(SROCC_coef)}')
@@ -214,6 +247,7 @@ def konvid1k_dataset_regression(X, y, regression='svr'):
         print(f'SROCC_p = {np.array(SROCC_p)}')
         print(f'PLCC = {np.array(PLCC)}')
         print(f'PLCCs average = {np.mean(np.abs(np.array(PLCC)))}')
+        
                 
             
             
