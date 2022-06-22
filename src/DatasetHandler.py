@@ -1,5 +1,6 @@
 import pandas as pd
 from torchvision import transforms
+import yaml
 
 def get_csiq_info(file_path: str) -> list:
     '''Get CSIQ VQA dataset metadata file and extract video file names and their 
@@ -56,7 +57,7 @@ def get_konvid1k_info(file_path):
     return videos, mos
     
 
-def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 224, framework='pytorch', **kwargs):
+def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 224, framework='pytorch', **kwargs):
     '''Given the name of the video dataset, get the list of respective video names and their scores,
        and set the preprocessing method.
        
@@ -90,8 +91,7 @@ def prepare_videoset(dataset='LIVE', frame_size: int = 224, center_crop: int = 2
     
     return videos, scores, frm_transform
 
-def live_vqa_regression():
-    '''
-    '''
-    
-    
+def read_yaml(file_path):
+    loader = yaml.SafeLoader
+    with open(file_path) as f:
+        return yaml.load(f, loader)
