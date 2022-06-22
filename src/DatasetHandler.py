@@ -57,7 +57,7 @@ def get_konvid1k_info(file_path):
     return videos, mos
     
 
-def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 224, framework='pytorch', **kwargs):
+def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 224, framework='pytorch'):
     '''Given the name of the video dataset, get the list of respective video names and their scores,
        and set the preprocessing method.
        
@@ -65,16 +65,23 @@ def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 
     :param frame_size: frame size according to the input of the pretrained model
     :param center_crop: used to crop the frame if frame_size is bigger than input of the model
     :param framework: deep learning framework
-    :param **kwargs: file names containing the info about videos and scores of a dataset
-    :return: list of video names, their scores and the preprocessing module
+    :return: list of video names, their scores, the preprocessing module, and the videos' directory
     '''
-
-    if dataset.upper() == 'LIVE':
-        videos, scores = get_live_info(kwargs['video_file'], kwargs['dmos_file'])
-    elif dataset.upper() == 'CSIQ':
-        videos, scores = get_csiq_info(kwargs['video_file'])
-    elif dataset.upper() == 'KONVID1K':
-        videos, scores = get_konvid1k_info(kwargs['video_file'])
+    
+    dataset = dataset.lower()
+    # Read the dataset info from the yaml file
+    dataset_info = read_yaml('vqa_dataset_info.yaml')
+    info_file_1 = dataset_info.get(dataset).get('info_file_1')
+    info_file_2 = dataset_info.get(dataset).get('info_file_2')
+    # Get the videos directory
+    video_path = dataset_info.get(dataset).get('video_path')
+    
+    if dataset == 'live':
+        videos, scores = get_live_info(info_file_1, info_file_2)
+    elif dataset == 'csiq':
+        videos, scores = get_csiq_info(info_file_1)
+    elif dataset == 'konvid1k':
+        videos, scores = get_konvid1k_info(info_file_1)
         
     if framework == 'pytorch':
         # pytorch specific preprocessing
@@ -89,7 +96,8 @@ def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 
         pass
     
     
-    return videos, scores, frm_transform
+    return videos, scores, frm_transform, video_path
+
 
 def read_yaml(file_path):
     loader = yaml.SafeLoader
