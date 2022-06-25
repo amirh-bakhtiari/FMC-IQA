@@ -28,60 +28,46 @@ import VideoUtility as vu
 ```
 
 ```{python tags=c()}
-def get_videoset_features(dataset: str = 'LIVE') -> list:
+def get_videoset_features(video_list: str, video_path: str, transform, dataset: str = 'LIVE') -> list:
     '''Get the VQA dataset video names and scores, set a feature extractor model,
        get frames of each video, then get features of each frame in videos
        
     :param dataset: name of the VQA dataset to extract the features from
     :return: videos' frames features of dimension and videos scores (DMOS)
     '''
-    
-    if dataset.upper() == 'LIVE':
-        # put the metadata file path of the LIVE VQA dataset
-        video_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt'
-        scores_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_data.txt'
-        videos_dir = Path('/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD')
-   
-        
-    elif dataset.upper() == 'KONVID1K':
-        video_data = '/media/amirh/Programs/Projects/VQA_Datasets/KoNViD_1k_metadata/KoNViD_1k_mos.csv'
-        videos_dir = Path('/media/amirh/Programs/Projects/VQA_Datasets/KoNViD_1k_videos')
-        scores_data = None
-        
-    # Get the list of videos and corresponding scores and preprocessing module
-    video_list, scores, transform = dh.prepare_videoset(dataset=dataset, frame_size=254, 
-                                                        video_file=video_data, dmos_file=scores_data)
 
     # Check if there is a GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
     # Set the frame features extractor model (VGG19)
     model = sfv.set_sf_model(device)
     
     # Specify the layers to get style features from the feature extractor model
     layers = {
-              '0': 'conv1_1',
-              # '5': 'conv2_1', 
+              # '0': 'conv1_1',
+              '5': 'conv2_1', 
               # '10': 'conv3_1', 
               # '19': 'conv4_1',
               # '28': 'conv5_1'
               }
-    
-    videos_frame_features = []
+    # Convert the path string to a pathlib object
+    video_path = Path(video_path)
+    dataset = dataset.lower()
+    # videos_frame_features = []
     for seq in tqdm(video_list):
         # Concatenate the video sequence name to the video directory to get the full video path
-        vid_path = str(videos_dir / seq)
-        if dataset.upper() == 'LIVE':
+        vid_path = str(video_path / seq)
+        if dataset == 'live':
             # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
             vid_frames = vu.get_frames(vid_path, height=432, width=768)
-        elif dataset.upper() == 'KONVID1K':
+        elif dataset == 'konvid1k':
             vid_frames = vu.get_frames(vid_path)
         # Get the features of all frames of the video
         frames_features = sfv.get_video_style_features(vid_frames, model, device, transform, layers)
         frames_features = np.array(frames_features)
-        videos_frame_features.append(frames_features)
+        # videos_frame_features.append(frames_features)
+        yield frames_features
     
-    return videos_frame_features, scores
+    # return videos_frame_features, scores
 ```
 
 ```{python}
@@ -118,11 +104,13 @@ def main(mode):
     # Specify the VQA dataset to train the model on
     dataset = 'KONVID1K'
     
+    # Get the list of videos and corresponding scores and preprocessing module
+    video_list, scores, transform, video_path = dh.get_videoset_info(dataset=dataset, frame_size=254)
     # Get frame level features of all videos in the dataset
     if mode == 'save':
-        videos_feats, scores = get_videoset_features(dataset)
+        videos_feats = get_videoset_features(video_list, video_path, transform, dataset)
         # Save the model
-        load_save_features('features.npy', 'scores.npy', features=videos_feats, scores=scores, mode=mode)
+        # load_save_features('features.npy', 'scores.npy', features=videos_feats, scores=scores, mode=mode)
     elif mode == 'load':
         videos_feats, scores = load_save_features('features.npy', 'scores.npy', mode=mode)
     # Pool the frame level features to get video level features

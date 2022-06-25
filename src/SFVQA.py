@@ -66,8 +66,7 @@ def gram_matrix(tensor, flat=True):
     
     # calculate the gram matrix
     gram = torch.mm(tensor, tensor.t())
-    
-    
+
     if flat == True:
         return torch.flatten(gram)
     else:
