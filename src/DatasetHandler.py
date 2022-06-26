@@ -1,6 +1,10 @@
 import pandas as pd
+from torch.utils.data import Dataset
 from torchvision import transforms
 import yaml
+
+from pathlib import Path
+from PIL import Image
 
 def get_csiq_info(file_path: str) -> list:
     '''Get CSIQ VQA dataset metadata file and extract video file names and their 
@@ -103,3 +107,24 @@ def read_yaml(file_path):
     loader = yaml.SafeLoader
     with open(file_path) as f:
         return yaml.load(f, loader)
+    
+    
+
+class CustomImageDataset(Dataset):
+    def __init__(self, annotations_file, img_dir, transform=None):
+        self.img_labels = pd.read_csv(annotations_file)
+        self.img_dir = img_dir
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.img_labels)
+
+    def __getitem__(self, idx):
+        img_path = Path(self.img_dir) / self.img_labels.iloc[idx, 0]
+        image = Image.open(img_path).convert('RGB')
+        label = self.img_labels.iloc[idx, 1]
+        if self.transform:
+            image = self.transform(image)
+        if self.target_transform:
+            label = self.target_transform(label)
+        return image, label
