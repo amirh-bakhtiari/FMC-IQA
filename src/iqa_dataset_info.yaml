@@ -1,0 +1,6 @@
+# Path of annotations file(s) including the images and their scores 
+# TID2013 IQA Dataset
+tid2013:
+  annotations_file_1: /media/amirh/Programs/Projects/IQA_Datasets/TID2013/mos_with_names.csv
+  annotations_file_2: null
+  img_dir: /media/amirh/Programs/Projects/IQA_Datasets/TID2013/distorted_images
