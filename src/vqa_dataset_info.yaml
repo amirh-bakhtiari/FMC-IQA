@@ -1,11 +1,11 @@
 # Path of info file(s) including the video sequences and their scores 
 # LIVE VQA Dataset
 live:
-  annotattions_file_1: /media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt
-  annotattions_file_2: /media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_data.txt
+  annotations_file_1: /media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt
+  annotations_file_2: /media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_data.txt
   video_dir: /media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD
 # Konvid1K VQA Dataset
 konvid1k:
-  annotattions_file_1: /media/amirh/Programs/Projects/VQA_Datasets/KoNViD_1k_metadata/KoNViD_1k_mos.csv
-  annotattions_file_2: null
+  annotations_file_1: /media/amirh/Programs/Projects/VQA_Datasets/KoNViD_1k_metadata/KoNViD_1k_mos.csv
+  annotations_file_2: null
   video_dir: /media/amirh/Programs/Projects/VQA_Datasets/KoNViD_1k_videos

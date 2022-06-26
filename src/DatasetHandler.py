@@ -1,5 +1,6 @@
 import pandas as pd
 from torch.utils.data import Dataset
+from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 import yaml
 
@@ -75,17 +76,17 @@ def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 
     dataset = dataset.lower()
     # Read the dataset info from the yaml file
     dataset_info = read_yaml('vqa_dataset_info.yaml')
-    info_file_1 = dataset_info.get(dataset).get('annotations_file_1')
-    info_file_2 = dataset_info.get(dataset).get('annotations_file_2')
+    annotations_file_1 = dataset_info.get(dataset).get('annotations_file_1')
+    annotations_file_2 = dataset_info.get(dataset).get('annotations_file_2')
     # Get the videos directory
     video_path = dataset_info.get(dataset).get('video_dir')
     
     if dataset == 'live':
-        videos, scores = get_live_info(info_file_1, info_file_2)
+        videos, scores = get_live_info(annotations_file_1, annotations_file_2)
     elif dataset == 'csiq':
-        videos, scores = get_csiq_info(info_file_1)
+        videos, scores = get_csiq_info(annotations_file_1)
     elif dataset == 'konvid1k':
-        videos, scores = get_konvid1k_info(info_file_1)
+        videos, scores = get_konvid1k_info(annotations_file_1)
         
     if framework == 'pytorch':
         # pytorch specific preprocessing

@@ -1,8 +1,11 @@
 import numpy as np
 from PIL import Image
 import torch
+from torch import nn
 from torchvision import models
+from torchvision import transforms
 
+import DatasetHandler as dh
 
 def set_sf_model(device):
     '''Set the model to extract both the content and style features according to the
@@ -133,9 +136,164 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
     return video_features
 
 
-       
+def fine_tune_model(model='vgg19', dataset='tid2013', features=True):
+    '''Fine tune the input model
+    
+    :param model: pretrained model
+    :param dataset: dataset the model is fine-tuned on
+    :param features: only features portion of the model is returned if True 
+    :return: fine-tuned model
+    '''
+    
+    # Read the dataset info from the yaml file
+    dataset_info = dh.read_yaml('iqa_dataset_info.yaml')
+    annotations_file_1 = dataset_info.get(dataset).get('annotations_file_1')
+    # Get the image directory
+    img_dir = dataset_info.get(dataset).get('img_dir')
+    
+    # Define the preproccesing pipeline
+    transform = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize([0.485, 0.456, 0.406], 
+                                                        [0.229, 0.224, 0.225])])
+    
+    # Obtain the training data
+    train_data = dh.CustomImageDataset(annotations_file_1, img_dir, transform)
+    
+    # percentage of training set to use as validation
+    valid_size = 0.2
+    # how many samples per batch to load
+    batch_size = 16
+    
+    # obtain training indices that will be used for validation
+    num_train = len(train_data)
+    indices = list(range(num_train))
+    
+    split = int(np.floor(num_train * valid_size))
+    train_idx, valid_idx = indices[split:], indices[:split]
+    
+    # define samplers for obtaining training and validation batches
+    train_sampler = SubsetRandomSampler(train_idx)
+    valid_sampler = SubsetRandomSampler(valid_idx)
+    
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
+                                               sampler=train_sampler, shuffle=True)
+    valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
+                                               sampler=valid_sampler, shuffle=True)
+    
+    
+    if model == 'vgg19':
+        # Get vgg19 model
+        vgg19 = models.vgg19(pretrained=True)
+        # Replace the last dense layer of classifier portion with one node 
+        # to use it as a neural network regressor
+        vgg19.classifier[6] = nn.Linear(in_features=4096, out_features=1)
+        
+    # Specify loss function
+    criterion = nn.MSELoss()
+    # Specify optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    # Number of epochs
+    epochs = 100
+    
+    # Train the model with the given dataset to fine tune it
+    model = train_model(vgg19, train_loader, valid_loader, criterion, epochs)
+    
+    if features:
+        model = model.features
+    
+    # freeze all model parameters
+    for param in model.parameters():
+        param.requires_grad_(False)
+    
+    return model
+    
+    
+    
+def train_model(model, train_loader, valid_loader, criterion, optimizer, epochs):
+    '''Train a network
+    
+    :param model: the model which is going to be fine tuned
+    :param train_loader: loader of the training set
+    :param valid_loader: loader of the validation set
+    :param epochs: number of epochs for training
+    :param lr: learning rate
+    '''
+    # Use GPU if it's available
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device);
+            
+    # initialize tracker for minimum validation loss
+    valid_loss_min = np.Inf # set initial "min" to infinity
+
+    for e in range(epochs):
+        # Monitor the loss
+        train_loss = 0.0
+        valid_loss = 0.0
+        
+        # Prep model for training
+        model.train()
+        for inputs, labels in train_loader:
+            # Move input and label tensors to the default device
+            inputs, labels = inputs.to(device), labels.to(device)
+            
+            # clear the gradients of all optimized variables
+            optimizer.zero_grad()
+            # Forward pass
+            output = model(inputs)
+            # calculate the loss
+            loss = criterion(output, labels)
+            # backward pass: compute gradient of the loss with respect to model parameters
+            loss.backward()
+            # perform a single optimization step (parameter update)
+            optimizer.step()
+            # update training loss
+            train_loss += loss.item()
+            
+        # Prep the model for evaluation
+        model.eval()
+        for inputs, labels in valid_loader:
+            # Move input and label tensors to the default device
+            inputs, labels = inputs.to(device), labels.to(device)
+            # Forward pass
+            output = model(inputs)
+            # calculate the loss
+            loss = criterion(output, labels)
+            # update running validation loss
+            valid_loss += loss.item()
+            
+        # print training/validation statistics 
+        # calculate average loss over an epoch
+        train_loss = train_loss / len(train_loader)
+        valid_loss = valid_loss / len(valid_loader)
+        
+        print(f'Epoch {e+1} / {epochs}  ---  train loss = {train_loss:.4f}  ---  
+              validation loss = {valid_loss}')
+                      
+        if valid_loss <= valid_loss_min:
+              print(f'validation loss decreased ({valid_loss_min:.4f} --> {valid_loss:.4f}). Saving model ...')
+              torch.save(model.state_dict(), 'model.pt')
+              valid_loss_min = valid_loss
+    
+    # Load the best model which has been saved
+    state_dict = torch.load('model.pt')
+    model.load_state_dict(state_dict)
+    return model
+              
+              
+            
+            
+            
+            
         
         
+    
+    
+    
+    
+    
+    
+    
+          
         
         
         
