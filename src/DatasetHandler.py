@@ -1,6 +1,5 @@
 import pandas as pd
 from torch.utils.data import Dataset
-from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import transforms
 import yaml
 
@@ -126,7 +125,6 @@ class CustomImageDataset(Dataset):
         label = self.img_labels.iloc[idx, 1]
         if self.transform:
             image = self.transform(image)
-        if self.target_transform:
-            label = self.target_transform(label)
+
         return image, label
     

@@ -216,10 +216,10 @@ def konvid1k_dataset_regression(X, y, regression_method='svr'):
             
             fig, ax = plt.subplots(1, 1, figsize=(20, 10))
             ax.scatter(y_test.squeeze(), y_pred.squeeze());
-            ax.set_xlabel('Ground-truth MOS')
-            ax.set_ylabel('Predicted Score')
-            ax.set_title(f'SROCC = {coef:.4f}')
-            fig.savefig(f'{len(SROCC_coef)}.png')
+            ax.set_xlabel('Ground-truth MOS');
+            ax.set_ylabel('Predicted Score');
+            ax.set_title(f'SROCC = {coef:.4f}');
+            fig.savefig(f'{len(SROCC_coef)}.png');
         
     return SROCC_coef, SROCC_p, PLCC
     
@@ -243,10 +243,12 @@ def regression(X, y, regression_method='svr', dataset='LIVE'):
     # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
     with np.printoptions(precision=4, suppress=True):
         print(f'SROCC_coef = {np.array(SROCC_coef)}')
-        print(f'SROCC_coefs average = {np.mean(np.abs(np.array(SROCC_coef)))}')
+        print(f'SROCC_coefs average = {np.mean(np.abs(SROCC_coef))}')
+        print(f'SROCC_coefs median = {np.median(np.abs(SROCC_coef))}')
         print(f'SROCC_p = {np.array(SROCC_p)}')
         print(f'PLCC = {np.array(PLCC)}')
-        print(f'PLCCs average = {np.mean(np.abs(np.array(PLCC)))}')
+        print(f'PLCCs average = {np.mean(np.abs(PLCC))}')
+        print(f'PLCCs median = {np.median(np.abs(PLCC))}')
         
                 
             

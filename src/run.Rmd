@@ -28,18 +28,17 @@ import VideoUtility as vu
 ```
 
 ```{python tags=c()}
-def get_videoset_features(video_list: str, video_path: str, transform, dataset: str = 'LIVE') -> list:
+def get_videoset_features(model, device, video_list: str, video_path: str, transform, dataset: str = 'LIVE') -> list:
     '''Get the VQA dataset video names and scores, set a feature extractor model,
        get frames of each video, then get features of each frame in videos
        
+    :param video_list: list of video sequences name
+    :param video_path: videos' directory
+    :param transform: preprocessing pipeline
     :param dataset: name of the VQA dataset to extract the features from
+    :param fine_tune: use fine-tuned model if True
     :return: videos' frames features of dimension and videos scores (DMOS)
     '''
-
-    # Check if there is a GPU
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # Set the frame features extractor model (VGG19)
-    model = sfv.set_sf_model(device)
     
     # Specify the layers to get style features from the feature extractor model
     layers = {
@@ -106,9 +105,15 @@ def main(mode):
     
     # Get the list of videos and corresponding scores and preprocessing module
     video_list, scores, transform, video_path = dh.get_videoset_info(dataset=dataset, frame_size=254)
+    
+    # Check if there is a GPU
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Set the frame features extractor model (VGG19)
+    model = sfv.set_sf_model(device, fine_tune=True)
+    
     # Get frame level features of all videos in the dataset
     if mode == 'save':
-        videos_feats = get_videoset_features(video_list, video_path, transform, dataset)
+        videos_feats = get_videoset_features(model, device, video_list, video_path, transform, dataset)
         # Save the model
         # load_save_features('features.npy', 'scores.npy', features=videos_feats, scores=scores, mode=mode)
     elif mode == 'load':
