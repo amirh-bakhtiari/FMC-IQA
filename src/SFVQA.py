@@ -2,12 +2,13 @@ import numpy as np
 from PIL import Image
 import torch
 from torch import nn
+from torch.utils.data.sampler import SubsetRandomSampler
 from torchvision import models
 from torchvision import transforms
 
 import DatasetHandler as dh
 
-def set_sf_model(device):
+def set_sf_model(device, fine_tune=False):
     '''Set the model to extract both the content and style features according to the
        style transfer paper:
     
@@ -15,16 +16,23 @@ def set_sf_model(device):
     :return: module of the model
     '''
     
-    # get the "features" portion of VGG19 (we will not need the "classifier" portion)
-    vgg = models.vgg19(pretrained=True).features
-
-    # freeze all VGG parameters since we're only optimizing the target image
-    for param in vgg.parameters():
-        param.requires_grad_(False)
+    model = models.vgg19(pretrained=True)
     
-    vgg.to(device)
+    if fine_tune:        
+        # Replace the last dense layer of classifier portion with one node 
+        # to use it as a neural network regressor
+        model.classifier[6] = nn.Linear(in_features=4096, out_features=1)
+        model.to(device)
+        model = fine_tune_model(model, device)
+    else:
+        model.to(device)        
         
-    return vgg
+    model = model.features
+    # freeze all VGG parameters since we're only optimizing the target image
+    for param in model.parameters():
+        param.requires_grad_(False)
+        
+    return model
 
 def get_frame_features(image, model, layers=None):
     """ Run an image forward through a model and get the features for 
@@ -136,7 +144,7 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
     return video_features
 
 
-def fine_tune_model(model='vgg19', dataset='tid2013', features=True):
+def fine_tune_model(model, device, dataset='tid2013', features=True):
     '''Fine tune the input model
     
     :param model: pretrained model
@@ -152,64 +160,52 @@ def fine_tune_model(model='vgg19', dataset='tid2013', features=True):
     img_dir = dataset_info.get(dataset).get('img_dir')
     
     # Define the preproccesing pipeline
-    transform = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize([0.485, 0.456, 0.406], 
-                                                        [0.229, 0.224, 0.225])])
+    transform = transforms.Compose([transforms.Resize(255),
+                                    transforms.CenterCrop(224),
+                                    transforms.ToTensor(), 
+                                    transforms.Normalize([0.485, 0.456, 0.406], 
+                                                         [0.229, 0.224, 0.225])])
     
     # Obtain the training data
     train_data = dh.CustomImageDataset(annotations_file_1, img_dir, transform)
-    
-    # percentage of training set to use as validation
-    valid_size = 0.2
+
     # how many samples per batch to load
-    batch_size = 16
+    batch_size = 8
+    
     
     # obtain training indices that will be used for validation
     num_train = len(train_data)
     indices = list(range(num_train))
     
-    split = int(np.floor(num_train * valid_size))
-    train_idx, valid_idx = indices[split:], indices[:split]
+    # percentage of training set to use as validation
+    valid_size = 0.2
+    split = int(np.floor(num_train * (1 - valid_size)))
+    train_idx, valid_idx = indices[:split], indices[split:]
     
     # define samplers for obtaining training and validation batches
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
     
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
-                                               sampler=train_sampler, shuffle=True)
+                                               sampler=train_sampler)
     valid_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, 
-                                               sampler=valid_sampler, shuffle=True)
+                                               sampler=valid_sampler)
     
-    
-    if model == 'vgg19':
-        # Get vgg19 model
-        vgg19 = models.vgg19(pretrained=True)
-        # Replace the last dense layer of classifier portion with one node 
-        # to use it as a neural network regressor
-        vgg19.classifier[6] = nn.Linear(in_features=4096, out_features=1)
-        
     # Specify loss function
     criterion = nn.MSELoss()
     # Specify optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     # Number of epochs
-    epochs = 100
+    epochs = 20
     
     # Train the model with the given dataset to fine tune it
-    model = train_model(vgg19, train_loader, valid_loader, criterion, epochs)
-    
-    if features:
-        model = model.features
-    
-    # freeze all model parameters
-    for param in model.parameters():
-        param.requires_grad_(False)
-    
+    model = train_model(model, train_loader, valid_loader, criterion, optimizer, epochs, device)
+
     return model
     
     
     
-def train_model(model, train_loader, valid_loader, criterion, optimizer, epochs):
+def train_model(model, train_loader, valid_loader, criterion, optimizer, epochs, device):
     '''Train a network
     
     :param model: the model which is going to be fine tuned
@@ -218,10 +214,7 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, epochs)
     :param epochs: number of epochs for training
     :param lr: learning rate
     '''
-    # Use GPU if it's available
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device);
-            
+    
     # initialize tracker for minimum validation loss
     valid_loss_min = np.Inf # set initial "min" to infinity
 
@@ -241,38 +234,39 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, epochs)
             # Forward pass
             output = model(inputs)
             # calculate the loss
-            loss = criterion(output, labels)
+            loss = criterion(output.squeeze(), labels.float().squeeze())
             # backward pass: compute gradient of the loss with respect to model parameters
             loss.backward()
             # perform a single optimization step (parameter update)
             optimizer.step()
             # update training loss
             train_loss += loss.item()
+
             
         # Prep the model for evaluation
         model.eval()
         for inputs, labels in valid_loader:
-            # Move input and label tensors to the default device
-            inputs, labels = inputs.to(device), labels.to(device)
-            # Forward pass
-            output = model(inputs)
-            # calculate the loss
-            loss = criterion(output, labels)
-            # update running validation loss
-            valid_loss += loss.item()
+            with torch.no_grad():
+                # Move input and label tensors to the default device
+                inputs, labels = inputs.to(device), labels.to(device)
+                # Forward pass
+                output = model(inputs)
+                # calculate the loss
+                loss = criterion(output.squeeze(), labels.float().squeeze())
+                # update running validation loss
+                valid_loss += loss.item()
             
         # print training/validation statistics 
         # calculate average loss over an epoch
         train_loss = train_loss / len(train_loader)
         valid_loss = valid_loss / len(valid_loader)
         
-        print(f'Epoch {e+1} / {epochs}  ---  train loss = {train_loss:.4f}  ---  
-              validation loss = {valid_loss}')
+        print(f'Epoch {e+1} / {epochs}  ---  train loss = {train_loss:.4f}  --- validation loss = {valid_loss:.4f}')
                       
         if valid_loss <= valid_loss_min:
-              print(f'validation loss decreased ({valid_loss_min:.4f} --> {valid_loss:.4f}). Saving model ...')
-              torch.save(model.state_dict(), 'model.pt')
-              valid_loss_min = valid_loss
+            print(f'validation loss decreased ({valid_loss_min:.4f} --> {valid_loss:.4f}). Saving model ...')
+            torch.save(model.state_dict(), 'model.pt')
+            valid_loss_min = valid_loss
     
     # Load the best model which has been saved
     state_dict = torch.load('model.pt')
