@@ -8,7 +8,7 @@ from torchvision import transforms
 
 import DatasetHandler as dh
 
-def set_sf_model(device, fine_tune=False):
+def set_sf_model(device, fine_tune=False, model_name='vgg19', **kwargs):
     '''Set the model to extract both the content and style features according to the
        style transfer paper:
     
@@ -16,18 +16,51 @@ def set_sf_model(device, fine_tune=False):
     :return: module of the model
     '''
     
-    model = models.vgg19(pretrained=True)
-    
-    if fine_tune:        
-        # Replace the last dense layer of classifier portion with one node 
-        # to use it as a neural network regressor
-        model.classifier[6] = nn.Linear(in_features=4096, out_features=1)
-        model.to(device)
-        model = fine_tune_model(model, device)
-    else:
-        model.to(device)        
+    if model_name == 'vgg19':
+        model = models.vgg19(pretrained=True)
+       
+        if fine_tune:        
+            # Replace the last dense layer of classifier portion with one node 
+            # to use it as a neural network regressor
+            model.classifier[6] = nn.Linear(in_features=4096, out_features=1)
+            model.to(device)
+            model = fine_tune_model(model, device, **kwargs)
+        else:
+            model.to(device)        
+
+        model = model.features
+        # Rename the model to its original before truncating features portion
+        model.__class__.__name__ = 'VGG'
         
-    model = model.features
+    elif model_name == 'inceptionv3':
+        model = models.inception_v3(pretrained=True)
+        # Replace the fc layer with Identity to let the model output avgpool layer as CNN features
+        model.fc = nn.Identity()
+        # Put the model in inference mode
+        model.eval()
+        
+        if fine_tune:        
+            # Replace the last dense layer of classifier portion with one node 
+            # to use it as a neural network regressor
+            model.fc = nn.Linear(in_features=2048, out_features=1)
+            
+            # Freeze middle layers and let first layers and fc layer to be trained
+            for param in model.parameters():
+                param.requires_grad_(False)
+            for name, param in model.named_parameters():
+                if name == 'Mixed_5c.branch1x1.conv.weight':
+                    model.fc.weight.requires_grad_(True)
+                    model.fc.bias.requires_grad_(True)
+                    break
+                    
+                param.requires_grad_(True)
+    
+            model.to(device)
+            model = fine_tune_model(model, device, **kwargs)
+            model.fc = nn.Identity()
+        else:
+            model.to(device)
+        
     # freeze all VGG parameters since we're only optimizing the target image
     for param in model.parameters():
         param.requires_grad_(False)
@@ -49,15 +82,25 @@ def get_frame_features(image, model, layers=None):
                   '21': 'conv4_2',  ## content representation
                   '28': 'conv5_1'
                  }
-        
-    features = {}
+    
     x = image
-    # model._modules is a dictionary holding each module in the model
-    for name, layer in model._modules.items():
-        x = layer(x)
-        if name in layers:
-            features[layers[name]] = x
-            
+    features = {}
+    # If the feats extractor is inception3 and layer is 'avgpool', get feats directly
+    if model.__class__.__name__ == 'Inception3' and ('avgpool' in layers):
+        features[layers.pop('avgpool')] = model(x)
+    
+    layers_len = len(layers)
+    # Check if any other layers are left
+    if layers_len:
+        # model._modules is a dictionary holding each module in the model
+        for name, layer in model._modules.items():
+            x = layer(x)
+            if name in layers:
+                features[layers[name]] = x
+                layers_len -= 1
+                if not layers_len:
+                    break
+           
     return features
 
 def gram_matrix(tensor, flat=True):
@@ -101,13 +144,19 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
     '''
     
     # Determine the layers to get style features from (style feats indicate color, texture and curvatures in an image)
-    if layers is None:
-        layers = {'0': 'conv1_1',
-                  '5': 'conv2_1', 
-                  '10': 'conv3_1', 
-                  '19': 'conv4_1',
-                  '28': 'conv5_1'
-                 }
+    if model.__class__.__name__ == 'VGG':
+        gram_layers = {'conv1_1',
+                       'conv2_1', 
+                       'conv3_1', 
+                       'conv4_1',
+                       'conv5_1'
+                      }
+    elif model.__class__.__name__ == 'Inception3':
+        gram_layers = {
+                      'conv1_1',
+                      'conv2_1', 
+                      'Mixed_1', 
+                      }
         
     
     video_features = []
@@ -120,12 +169,16 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
         frame = transform(frame).unsqueeze(0).to(device)
         
         # Get features maps of all frames from the specified layers
-        features = get_frame_features(frame, model, layers)
+        features = get_frame_features(frame, model, layers.copy())
         
         frame_gram_matrices = []
         # Get flattened gram matrix of each frame and concatenate them as the new frame features
-        for feature_maps in features.values():
-            frame_gram_matrices.extend(gram_matrix(feature_maps).cpu().numpy())
+        for layer, feature_maps in features.items():
+            # If the layer is used for getting style features
+            if layer in gram_layers:
+                frame_gram_matrices.extend(gram_matrix(feature_maps).cpu().numpy())
+            else: # If the layer is among the last conv layers 
+                frame_gram_matrices.extend(feature_maps.flatten().cpu().numpy())
        
         # Add the new features of a the current frame to the video frame features
         if hist_feat:
@@ -135,16 +188,16 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
             # Get the Gram matrices of a frame as frame-level features
             video_features.append(frame_gram_matrices)
     
-    # Check the shape of each layers's features for the last frame of the video
+    # #Check the shape of each layers's features for the last frame of the video
     # for key, value in features.items():
     #     print(f'Layer {key} features dimension = {value.shape}')
     # # Check the shape of the resultant features of the last frame
     # print(f'Concatenated Gram matrices dimension of a frame = {np.array(video_features[-1]).shape}')
-    
+
     return video_features
 
 
-def fine_tune_model(model, device, dataset='tid2013', features=True):
+def fine_tune_model(model, device, dataset='tid2013', **kwargs):
     '''Fine tune the input model
     
     :param model: pretrained model
@@ -160,8 +213,11 @@ def fine_tune_model(model, device, dataset='tid2013', features=True):
     img_dir = dataset_info.get(dataset).get('img_dir')
     
     # Define the preproccesing pipeline
-    transform = transforms.Compose([transforms.Resize(255),
-                                    transforms.CenterCrop(224),
+    transform = transforms.Compose([#transforms.Resize(kwargs['frame_size']),
+                                    transforms.CenterCrop(kwargs['center_crop']),
+                                    # transforms.RandomRotation(30),
+                                    # transforms.RandomResizedCrop(kwargs['center_crop']),
+                                    # transforms.RandomHorizontalFlip(),
                                     transforms.ToTensor(), 
                                     transforms.Normalize([0.485, 0.456, 0.406], 
                                                          [0.229, 0.224, 0.225])])
@@ -179,8 +235,8 @@ def fine_tune_model(model, device, dataset='tid2013', features=True):
     
     # percentage of training set to use as validation
     valid_size = 0.2
-    split = int(np.floor(num_train * (1 - valid_size)))
-    train_idx, valid_idx = indices[:split], indices[split:]
+    split = int(np.floor(num_train * valid_size))
+    train_idx, valid_idx = indices[split:], indices[:split]
     
     # define samplers for obtaining training and validation batches
     train_sampler = SubsetRandomSampler(train_idx)
@@ -194,9 +250,9 @@ def fine_tune_model(model, device, dataset='tid2013', features=True):
     # Specify loss function
     criterion = nn.MSELoss()
     # Specify optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0003)
     # Number of epochs
-    epochs = 20
+    epochs = 60
     
     # Train the model with the given dataset to fine tune it
     model = train_model(model, train_loader, valid_loader, criterion, optimizer, epochs, device)
@@ -233,8 +289,12 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, epochs,
             optimizer.zero_grad()
             # Forward pass
             output = model(inputs)
+            # Since InceptionOutputs is a namedtuple, which contains the attributes .logits and
+            # .aux_logits, pick .logits as the main output
+            if model.__class__.__name__ == 'Inception3':
+                output = output.logits
             # calculate the loss
-            loss = criterion(output.squeeze(), labels.float().squeeze())
+            loss = criterion(output, labels.float().view(-1, 1))
             # backward pass: compute gradient of the loss with respect to model parameters
             loss.backward()
             # perform a single optimization step (parameter update)
@@ -252,7 +312,7 @@ def train_model(model, train_loader, valid_loader, criterion, optimizer, epochs,
                 # Forward pass
                 output = model(inputs)
                 # calculate the loss
-                loss = criterion(output.squeeze(), labels.float().squeeze())
+                loss = criterion(output, labels.float().view(-1, 1))
                 # update running validation loss
                 valid_loss += loss.item()
             
