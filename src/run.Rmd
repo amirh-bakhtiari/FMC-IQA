@@ -41,13 +41,25 @@ def get_videoset_features(model, device, video_list: str, video_path: str, trans
     '''
     
     # Specify the layers to get style features from the feature extractor model
-    layers = {
-              # '0': 'conv1_1',
-              '5': 'conv2_1', 
-              # '10': 'conv3_1', 
-              # '19': 'conv4_1',
-              # '28': 'conv5_1'
-              }
+    # VGG19 layers
+    if model.__class__.__name__ == 'VGG':
+        layers = {
+                  # '0': 'conv1_1',
+                  '5': 'conv2_1', 
+                  # '10': 'conv3_1', 
+                  # '19': 'conv4_1',
+                  # '28': 'conv5_1'
+                  }
+    # Inception v3 layers
+    elif model.__class__.__name__ == 'Inception3':
+        layers = {
+                  # 'Conv2d_1a_3x3': 'conv1_1',
+                  # 'Conv2d_3b_1x1': 'conv2_1', 
+                  'Mixed_5b': 'Mixed_1', 
+                  # 'Mixed_5c': 'Mixed_2',
+                  'avgpool': 'avgpool'
+                  }
+        
     # Convert the path string to a pathlib object
     video_path = Path(video_path)
     dataset = dataset.lower()
@@ -95,34 +107,56 @@ def load_save_features(feat_path, scores_path, features=None, scores=None, mode=
 ```
 
 ```{python}
+def init_vqa():
+    ''' Set the frame feature extractor model, VQA dataset and frame size
+    
+    :return: model, fataset and frame size and patch
+    '''
+    
+    # Specify the feature extractor model and VQA dataset to train the model on
+    feat_extractor_model, vqa_dataset = 'inceptionv3', 'KONVID1K'
+    
+    if feat_extractor_model == 'vgg19':
+        frame_size, center_crop = 255, 224
+    elif feat_extractor_model == 'inceptionv3':
+        frame_size, center_crop = 338, 299
+        
+    return feat_extractor_model, vqa_dataset, frame_size, center_crop
+    
+```
+
+```{python}
 # Entry point of the program
 def main(mode):
     '''Run the whole process of VQA
     :param mode: 'save' if features have not already been extracted, 'load' otherwise
     '''
-    # Specify the VQA dataset to train the model on
-    dataset = 'KONVID1K'
+    # Initialize the vqa
+    extractor_model, vqa_dataset, frame_size, center_crop = init_vqa()
     
     # Get the list of videos and corresponding scores and preprocessing module
-    video_list, scores, transform, video_path = dh.get_videoset_info(dataset=dataset, frame_size=254)
+    video_list, scores, transform, video_path = dh.get_videoset_info(dataset=vqa_dataset,
+                                                                     frame_size=frame_size,
+                                                                     center_crop=center_crop)
     
     # Check if there is a GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # Set the frame features extractor model (VGG19)
-    model = sfv.set_sf_model(device, fine_tune=True)
+    model = sfv.set_sf_model(device, fine_tune=False, model_name=extractor_model,
+                             frame_size=frame_size, center_crop=center_crop)
     
     # Get frame level features of all videos in the dataset
     if mode == 'save':
-        videos_feats = get_videoset_features(model, device, video_list, video_path, transform, dataset)
+        videos_feats = get_videoset_features(model, device, video_list, video_path, transform, vqa_dataset)
         # Save the model
         # load_save_features('features.npy', 'scores.npy', features=videos_feats, scores=scores, mode=mode)
     elif mode == 'load':
         videos_feats, scores = load_save_features('features.npy', 'scores.npy', mode=mode)
     # Pool the frame level features to get video level features
-    pooled_features = pooling.simple_pooling(videos_feats)
+    pooled_features = pooling.simple_pooling(videos_feats, pooling='max')
     # Train a regressor using video level features and indicate how well it predicts the scores
     # using various correlations
-    reg.regression(pooled_features, scores, regression_method='svr', dataset=dataset)               
+    reg.regression(pooled_features, scores, regression_method='svr', dataset=vqa_dataset)               
 ```
 
 ```{python tags=c()}

@@ -210,6 +210,8 @@ def konvid1k_dataset_regression(X, y, regression_method='svr'):
             SROCC_p.append(p)
             PLCC.append(corr)
 
+            print(f'Target Mos = {y_test.squeeze()}')
+            print(f'Predicted Mos = {y_pred.squeeze()}')
             print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
             print('*' * 50)
             
