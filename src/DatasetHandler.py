@@ -56,10 +56,10 @@ def get_konvid1k_info(file_path):
     mos = df['mos'].values
     
     # Convert the video names to string and concatanate the mp4 extension to names
-    videos = (str(video) + '.mp4' for video in videos)
+    videos = [str(video) + '.mp4' for video in videos]
     
     return videos, mos
-    
+
 
 def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 224, framework='pytorch'):
     '''Given the name of the video dataset, get the list of respective video names and their scores,
@@ -107,7 +107,7 @@ def read_yaml(file_path):
     loader = yaml.SafeLoader
     with open(file_path) as f:
         return yaml.load(f, loader)
-    
+
     
 
 class CustomImageDataset(Dataset):
@@ -127,4 +127,4 @@ class CustomImageDataset(Dataset):
             image = self.transform(image)
 
         return image, label
-    
+
