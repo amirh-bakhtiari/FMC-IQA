@@ -1,15 +1,6 @@
-# Enable Intel(R) Extension for Scikit-learn
-# from sklearnex import patch_sklearn
-# patch_sklearn()
 import matplotlib.pyplot as plt
-import tensorflow
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras import optimizers
 import numpy as np
-# from scipy.stats import spearmanr
-# from scipy.stats import pearsonr
+import seaborn as sns
 from scipy.stats.mstats import spearmanr
 from scipy.stats.mstats import pearsonr
 from sklearn.model_selection import KFold
@@ -19,44 +10,54 @@ from sklearn.svm import SVR
 
 import DatasetHandler as dh
 
+try:
+    import tensorflow
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import Dense, Dropout
+    from tensorflow.keras.layers import BatchNormalization
+    from tensorflow.keras import optimizers
 
-def nn_regressor(X_train, y_train):
-    '''Use a multi layer neural network as a regressor
-    
-    :param X_train: input samples' features
-    :param y_train: target scores
-    :return: a trained regressor model and the training history
-    '''
-    input_size = X_train.shape[1]
-    
-    model = Sequential()
-    model.add(Dense(4096, kernel_initializer='normal', activation='relu', input_shape=(input_size,)))#layer 1
-    model.add(BatchNormalization())
-    model.add(Dense(2048, kernel_initializer='normal', activation='relu'))#layer 2
-    # model.add(BatchNormalization())
-    model.add(Dropout(0.2))
-    model.add(Dense(1024, kernel_initializer='normal', activation='relu'))#layer 3
-    model.add(Dropout(0.2))
+    def nn_regressor(X_train, y_train):
+        '''Use a multi layer neural network as a regressor
 
-    model.add(Dense(512, kernel_initializer='normal', activation='relu'))#layer 4
-    model.add(Dropout(0.2))
+        :param X_train: input samples' features
+        :param y_train: target scores
+        :return: a trained regressor model and the training history
+        '''
+        input_size = X_train.shape[1]
 
-    model.add(Dense(256, kernel_initializer='normal', activation='relu'))#layer 5
-    model.add(Dropout(0.2))
+        model = Sequential()
+        model.add(Dense(4096, kernel_initializer='normal', activation='relu', input_shape=(input_size,)))#layer 1
+        model.add(BatchNormalization())
+        model.add(Dense(2048, kernel_initializer='normal', activation='relu'))#layer 2
+        # model.add(BatchNormalization())
+        model.add(Dropout(0.2))
+        model.add(Dense(1024, kernel_initializer='normal', activation='relu'))#layer 3
+        model.add(Dropout(0.2))
 
-    model.add(Dense(128, kernel_initializer='normal', activation='relu'))#layer 6
-    model.add(Dropout(0.2))
+        model.add(Dense(512, kernel_initializer='normal', activation='relu'))#layer 4
+        model.add(Dropout(0.2))
 
-    model.add(Dense(1, kernel_initializer='normal', activation='linear'))#layer 7
-    
-    
-    callback = tensorflow.keras.callbacks.EarlyStopping(monitor='val_loss',min_delta=0,patience=5,verbose=1,mode="min",baseline=None,restore_best_weights=True)
-    model.compile(optimizer= optimizers.Adam(learning_rate=4e-5),loss='mean_squared_error', metrics=['mean_squared_error'])
-    
-    history = model.fit(X_train, y_train, epochs=50, batch_size=8, validation_split=0.1, verbose=0, callbacks=[callback])
-    
-    return model, history
-    
+        model.add(Dense(256, kernel_initializer='normal', activation='relu'))#layer 5
+        model.add(Dropout(0.2))
+
+        model.add(Dense(128, kernel_initializer='normal', activation='relu'))#layer 6
+        model.add(Dropout(0.2))
+
+        model.add(Dense(1, kernel_initializer='normal', activation='linear'))#layer 7
+
+        callback=tensorflow.keras.callbacks.EarlyStopping(monitor='val_loss',min_delta=0,patience=5,
+                                                          verbose=1,mode="min",baseline=None,
+                                                          restore_best_weights=True)
+        model.compile(optimizer= optimizers.Adam(learning_rate=4e-5),loss='mean_squared_error',
+                      metrics=['mean_squared_error'])
+
+        history = model.fit(X_train, y_train, epochs=50, batch_size=8, validation_split=0.1,
+                            verbose=0, callbacks=[callback])
+
+        return model, history
+except ModuleNotFoundError:
+    pass
     
 
 def live_dataset_regression(X, y, regression_method='svr'):
@@ -161,6 +162,7 @@ def konvid1k_dataset_regression(X, y, regression_method='svr'):
     y = np.array(y).reshape(-1, 1)
     
     SROCC_coef, SROCC_p, PLCC = [], [], []
+    
     # Repeat K-fold cross validation 10 times
     for _ in range(10):
         
@@ -209,19 +211,20 @@ def konvid1k_dataset_regression(X, y, regression_method='svr'):
             SROCC_coef.append(coef)
             SROCC_p.append(p)
             PLCC.append(corr)
-
+                        
             print(f'Target Mos = {y_test.squeeze()}')
             print(f'Predicted Mos = {y_pred.squeeze()}')
             print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
             print('*' * 50)
             
+            # Plot the correlation between ground-truth and predicted scores             
+            sns.set(style='darkgrid')
+            scatter_plot = sns.relplot(x=y_test.squeeze(), y=y_pred.squeeze(),
+                                       kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
+                                       title=f'SROCC = {coef:.4f}', xlabel='Ground-truth MOS', ylabel='Predicted Score');
             
-            fig, ax = plt.subplots(1, 1, figsize=(20, 10))
-            ax.scatter(y_test.squeeze(), y_pred.squeeze());
-            ax.set_xlabel('Ground-truth MOS');
-            ax.set_ylabel('Predicted Score');
-            ax.set_title(f'SROCC = {coef:.4f}');
-            fig.savefig(f'{len(SROCC_coef)}.png');
+            
+            scatter_plot.savefig(f'{len(SROCC_coef)}_{coef:.4f}.png')
         
     return SROCC_coef, SROCC_p, PLCC
     
