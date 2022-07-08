@@ -1,7 +1,8 @@
 import skvideo.io
+import numpy as np
 
 def get_frames(vid_path: str, vid_pix_fmt: str = "yuv420p", frame_color_mode: str = 'rgb', 
-                   height: int = 0, width: int = 0):
+                   height: int = 0, width: int = 0, *, frame_diff=False):
     ''' Get an input path containing a video and return its frames
     
     :param path_in: path of a video to extract
@@ -16,12 +17,24 @@ def get_frames(vid_path: str, vid_pix_fmt: str = "yuv420p", frame_color_mode: st
     extension = vid_path.split('.')[-1]
     # Check the video type to set the proper params
     if extension == 'mp4':
-        return skvideo.io.vreader(vid_path)
+        frames_gen = skvideo.io.vreader(vid_path)
     # Otherwise check the output frame color mode for YUV videos
     elif frame_color_mode == 'rgb':
-        return skvideo.io.vreader(vid_path, height, width, inputdict={"-pix_fmt": "yuv420p"})
+        frames_gen = skvideo.io.vreader(vid_path, height, width, inputdict={"-pix_fmt": "yuv420p"})
     elif frame_color_mode == 'gray':
-        return skvideo.io.vreader(vid_path, height, width, as_grey=True, inputdict={"-pix_fmt": "yuv420p"})
+        frames_gen = skvideo.io.vreader(vid_path, height, width, as_grey=True, inputdict={"-pix_fmt": "yuv420p"})
     else:
-        return None
+        frames_gen = None
+    
+    # Get consecutive frames diffs as temporal changes
+    if frame_diff:
+        frames_diff = []
+        for i, frame in enumerate(frames_gen):
+            if i > 0:
+                diff = np.subtract(frame, last_frame)
+                frames_diff.append(diff)
+            last_frame = frame
+        return np.array(frames_diff)
+    else:
+        return frames_gen
         

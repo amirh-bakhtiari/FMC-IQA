@@ -177,7 +177,7 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
             # If the layer is used for getting style features
             if layer in gram_layers:
                 frame_gram_matrices.extend(gram_matrix(feature_maps).cpu().numpy())
-            else: # If the layer is among the last conv layers 
+            else: # If the layer is used for getting content (CNN) features 
                 frame_gram_matrices.extend(feature_maps.flatten().cpu().numpy())
        
         # Add the new features of a the current frame to the video frame features
