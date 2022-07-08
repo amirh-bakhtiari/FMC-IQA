@@ -188,7 +188,7 @@ def get_video_style_features(video, model, device, transform, layers: dict = Non
             # Get the Gram matrices of a frame as frame-level features
             video_features.append(frame_gram_matrices)
     
-    # #Check the shape of each layers's features for the last frame of the video
+    # # Check the shape of each layers's features for the last frame of the video
     # for key, value in features.items():
     #     print(f'Layer {key} features dimension = {value.shape}')
     # # Check the shape of the resultant features of the last frame
