@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -21,7 +22,7 @@ def get_csiq_info(file_path: str) -> list:
                 continue
             videos.append(line.split()[0])
             dmos.append(float(line.split()[1]))
-    
+    dmos = np.array(dmos)
     return videos, dmos
 
 def get_live_info(video_file: str, dmos_file: str) -> list:
@@ -35,10 +36,11 @@ def get_live_info(video_file: str, dmos_file: str) -> list:
     
     with open(video_file, 'r') as vid_file, open(dmos_file, 'r') as dmos_file:
         # Get the name of video sequences
-        videos = vid_file.read().split('\n')
+        videos = vid_file.read().strip().split('\n')
         # Get the DMOS of each video
-        scores = dmos_file.read().split('\n')
+        scores = dmos_file.read().strip().split('\n')
         dmos = [float(score.split('\t')[0]) for score in scores]
+        dmos = np.array(dmos)
     
     return videos, dmos   
 

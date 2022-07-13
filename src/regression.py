@@ -148,7 +148,7 @@ def live_dataset_regression(X, y, regression_method='svr'):
         
         
         
-def konvid1k_dataset_regression(X, y, regression_method='svr'):
+def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr'):
     '''Train an SVR Using the video level features and their corresponding scores from
        Konvid1k VQA dataset, predict the scores of test videos using the trained SVR. 
        Finally calculate the SROCC & PLCC.
@@ -162,6 +162,14 @@ def konvid1k_dataset_regression(X, y, regression_method='svr'):
     y = np.array(y).reshape(-1, 1)
     
     SROCC_coef, SROCC_p, PLCC = [], [], []
+    
+    # if cross dataset validation is required
+    if Xc is not None:
+        # Turn y into a 2D array to match StandardScalar() input
+        # yc = np.array(yc).reshape(-1, 1)
+        # sc = StandardScaler()
+        # ycs = sc.fit_transform(yc)
+        ycs /= 100.0
     
     # Repeat K-fold cross validation 10 times
     for _ in range(10):
@@ -195,7 +203,6 @@ def konvid1k_dataset_regression(X, y, regression_method='svr'):
             # Predict the scores for X_test videos features
             y_pred = regressor.predict(X_test)
             
-            
             # Turn y_pred into a 2D array to match StandardScalar() input
             y_pred = y_pred.reshape(-1, 1)
             y_test = y_test.reshape(-1, 1)
@@ -217,32 +224,65 @@ def konvid1k_dataset_regression(X, y, regression_method='svr'):
             print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
             print('*' * 50)
             
+            # if cross dataset validation is required
+            if Xc is not None:
+                Xcs = sc_X.transform(Xc)
+                
+                yc_pred = regressor.predict(Xcs)
+                
+                # Turn y_pred into a 2D array to match StandardScalar() input
+                yc_pred = yc_pred.reshape(-1, 1)
+                # Reverse the transform to get the real yc_pred
+                yc_pred = sc_y.inverse_transform(yc_pred)
+                
+                yc_pred -= 1
+                yc_pred /= 4.0
+              
+                # Calculate the Spearman rank-order correlation
+                coef_c, pc = spearmanr(ycs.squeeze(), yc_pred.squeeze())
+                # Calculate the Pearson correlation
+                corr_c, _ = pearsonr(ycs.squeeze(), yc_pred.squeeze())
+                print(f'\nCross Dataset SROCC = {coef_c:.4f} with p = {pc:.4f}, Cross Dataset PLCC = {corr_c:.4f}')
+                print('*' * 50)
+         
+            
+                # Plot the correlation between ground-truth and predicted scores             
+                sns.set(style='darkgrid')
+                scatter_plot = sns.relplot(x=yc.squeeze(), y=yc_pred.squeeze(),
+                                           kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
+                                           xlabel='Cross Dataset Score', ylabel='Predicted Score');
+                scatter_plot.savefig(f'{len(SROCC_coef)}_{abs(coef):.4f}_c.png')
+                
             # Plot the correlation between ground-truth and predicted scores             
             sns.set(style='darkgrid')
             scatter_plot = sns.relplot(x=y_test.squeeze(), y=y_pred.squeeze(),
                                        kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
-                                       title=f'SROCC = {coef:.4f}', xlabel='Ground-truth MOS', ylabel='Predicted Score');
+                                       xlabel='Ground-truth MOS', ylabel='Predicted Score');
             
             
-            scatter_plot.savefig(f'{len(SROCC_coef)}_{coef:.4f}.png')
+            scatter_plot.savefig(f'{len(SROCC_coef)}_{abs(coef):.4f}.png')
         
     return SROCC_coef, SROCC_p, PLCC
     
         
-def regression(X, y, regression_method='svr', dataset='LIVE'):
+def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
     '''Get video features and scores and call the respective regressor according to the dataset name
     
     :param X: an array of video level features of all videos in the dataset
     :param y: an array scores of all videos in the dataset
+    :param Xc: an array of video level features of all videos in the cross dataset
+    :param yc: an array scores of all videos in the cross dataset
     :param regression_method: 'svr' for SVR or 'nn' for multi layer neural network
     '''
     
     print(f'{X.shape = } {y.shape = }')
+    if Xc is not None:
+        print(f'{Xc.shape = } {yc.shape = }')
     
     if dataset.upper() == 'LIVE':
         SROCC_coef, SROCC_p, PLCC = live_dataset_regression(X, y, regression_method='svr')
     elif dataset.upper() == 'KONVID1K':
-        SROCC_coef, SROCC_p, PLCC = konvid1k_dataset_regression(X, y, regression_method='svr')
+        SROCC_coef, SROCC_p, PLCC = konvid1k_dataset_regression(X, y, Xc, yc, regression_method='svr')
         
     
     # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers

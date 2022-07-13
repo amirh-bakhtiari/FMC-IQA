@@ -63,55 +63,6 @@ def videoset_frame_feats(model, device, video_list: str, video_path: str, transf
 ```
 
 ```{python}
-def init_vqa(model_name, vqa_dataset):
-    ''' Set the frame feature extractor model, VQA dataset and frame size
-    
-    :param model_name: name of the feature extractor model, 'inceptionv3', 'vgg19':
-    :param vqa_dataset: VQA dataset to evaluate the method on, 'KONVID1K' , 'LIVE'
-    :return: model, dataset and frame size and patch
-    '''
-    
-    if model_name == 'vgg19':
-        frame_size, center_crop = 255, 224
-        # Specify the layers to get style features from vgg19
-        layers = {
-                  # '0': 'conv1_1',
-                  '5': 'conv2_1', 
-                  # '10': 'conv3_1', 
-                  # '19': 'conv4_1',
-                  # '20': 'conv4_2',  
-                  }
-        # Layer for getting features from frame differences
-        diff_layer = {'20': 'conv4_2'}
-        
-    elif model_name == 'inceptionv3':
-        frame_size, center_crop = 338, 299
-        # Specify the layers to get style features from inceptionv3
-        layers = {
-                  # 'Conv2d_1a_3x3': 'conv1_1',
-                  # 'Conv2d_3b_1x1': 'conv2_1', 
-                  'Mixed_5b': 'Mixed_1', 
-                  # 'Mixed_5c': 'Mixed_2',
-                  'avgpool': 'avgpool'
-                  }
-        # Layer for getting features from frame differences
-        diff_layer = {'avgpool': 'avgpool'}
-        
-    
-    # Specify whether or not extract features from frame differences
-    frame_diff = False
-    
-    # Check if there is a GPU
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # Set the frame features extractor model (VGG19)
-    model = sfv.set_sf_model(device, fine_tune=False, model_name=model_name,
-                             frame_size=frame_size, center_crop=center_crop)
-                
-    return model, device, vqa_dataset, frame_size, center_crop, layers, diff_layer, frame_diff
-    
-```
-
-```{python}
 def video_level_feats(model, device, dataset, layers, diff_layer, frame_size, center_crop,
                       frame_diff: bool = False, pool_type='max'):
     '''Get frame level features and pool them to have video level features (representation)
@@ -151,20 +102,77 @@ def video_level_feats(model, device, dataset, layers, diff_layer, frame_size, ce
     return pooled_features, scores
 ```
 
+```{python tags=c()}
+def init_vqa(model_name, vqa_dataset, cross_dataset=None):
+    ''' Set the frame feature extractor model, VQA dataset and frame size
+    
+    :param model_name: name of the feature extractor model, 'inceptionv3', 'vgg19':
+    :param vqa_dataset: VQA dataset to evaluate the method on, 'KONVID1K' , 'LIVE'
+    :return: model, dataset and frame size and patch
+    '''
+    
+    if model_name == 'vgg19':
+        frame_size, center_crop = 255, 224
+        # Specify the layers to get style features from vgg19
+        layers = {
+                  # '0': 'conv1_1',
+                  '5': 'conv2_1', 
+                  # '10': 'conv3_1', 
+                  # '19': 'conv4_1',
+                  # '20': 'conv4_2',  
+                  }
+        # Layer for getting features from frame differences
+        diff_layer = {'20': 'conv4_2'}
+        
+    elif model_name == 'inceptionv3':
+        frame_size, center_crop = 338, 299
+        # Specify the layers to get style features from inceptionv3
+        layers = {
+                  # 'Conv2d_1a_3x3': 'conv1_1',
+                  # 'Conv2d_3b_1x1': 'conv2_1', 
+                  'Mixed_5b': 'Mixed_1', 
+                  # 'Mixed_5c': 'Mixed_2',
+                  'avgpool': 'avgpool'
+                  }
+        # Layer for getting features from frame differences
+        diff_layer = {'avgpool': 'avgpool'}
+        
+    
+    # Specify whether or not extract features from frame differences
+    frame_diff = True
+    
+    # Check if there is a GPU
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # Set the frame features extractor model (VGG19)
+    model = sfv.set_sf_model(device, fine_tune=False, model_name=model_name,
+                             frame_size=frame_size, center_crop=center_crop)
+                
+    return model, device, vqa_dataset, cross_dataset, frame_size, center_crop, layers, diff_layer, frame_diff
+    
+```
+
 ```{python}
 # Entry point of the program
 def main():
     '''Run the whole process of VQA
     '''
     # Initialize vqa
-    model, device, vqa_dataset, frame_size, center_crop, layers,\
+    model, device, vqa_dataset, cross_dataset, frame_size, center_crop, layers,\
                                     diff_layer, frame_diff = init_vqa('inceptionv3',
                                                                       'konvid1k')
+    # Get video level features by pooling frame level features
     pooled_feats, scores = video_level_feats(model, device, vqa_dataset, layers, diff_layer,
                                              frame_size, center_crop, frame_diff)
+    
+    if cross_dataset == 'live':
+        # Get video level features by pooling features of consecutive frames' differences
+        c_pooled_feats, c_scores = video_level_feats(model, device, cross_dataset, layers, diff_layer,
+                                             frame_size, center_crop, frame_diff)
+    else:
+        c_pooled_feats, c_scores = None, None
+        
     # Train a regressor using video level features and indicate how well it predicts the scores
-    # using various correlations
-    reg.regression(pooled_feats, scores, regression_method='svr', dataset=vqa_dataset)               
+    reg.regression(pooled_feats, scores, c_pooled_feats, c_scores, 'svr', vqa_dataset)               
 ```
 
 ```{python tags=c()}
