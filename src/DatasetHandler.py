@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import scipy.io
 from torch.utils.data import Dataset
 from torchvision import transforms
 import yaml
@@ -45,7 +46,7 @@ def get_live_info(video_file: str, dmos_file: str) -> list:
     return videos, dmos   
 
 def get_konvid1k_info(file_path):
-    '''Get Konvid1K VQA dataset data files and extract video file names and their
+    '''Get Konvid1K VQA dataset annotation file and extract video file names and their
        correspondinf MOS ranging from 1 to 5
        
     :param file_path: the path to dataset info file
@@ -59,6 +60,24 @@ def get_konvid1k_info(file_path):
     
     # Convert the video names to string and concatanate the mp4 extension to names
     videos = [str(video) + '.mp4' for video in videos]
+    
+    return videos, mos
+
+def get_live_vqc_info(file_path):
+    '''Get LIVE-VQC dataset annotation file and extract video file names and their
+       corresponding MOS ranging from 0 to 100
+       
+    :param file_path: the path to dataset info file
+    :return: video sequence names and their MOS
+    '''
+    
+    # Read the mat file which is a dict including the video names and their MOS
+    mat = scipy.io.loadmat(file_path)
+    mos = mat.get('mos').squeeze()
+    vids_array = mat.get("video_list")
+    
+    # Convert the videos array of arrays to a list of strings
+    videos = [video[0][0] for video in vids_array]
     
     return videos, mos
 
@@ -88,6 +107,8 @@ def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 
         videos, scores = get_csiq_info(annotations_file_1)
     elif dataset == 'konvid1k':
         videos, scores = get_konvid1k_info(annotations_file_1)
+    elif dataset == 'live_vqc':
+        videos, scores = get_live_vqc_info(annotations_file_1)
         
     if framework == 'pytorch':
         # pytorch specific preprocessing

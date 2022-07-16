@@ -169,7 +169,7 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
         # yc = np.array(yc).reshape(-1, 1)
         # sc = StandardScaler()
         # ycs = sc.fit_transform(yc)
-        ycs /= 100.0
+        ycs = yc / 100.0
     
     # Repeat K-fold cross validation 10 times
     for _ in range(10):

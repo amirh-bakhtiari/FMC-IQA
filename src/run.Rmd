@@ -51,7 +51,7 @@ def videoset_frame_feats(model, device, video_list: str, video_path: str, transf
         if dataset == 'live':
             # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
             vid_frames = vu.get_frames(vid_path, height=432, width=768)
-        elif dataset == 'konvid1k':
+        else:
             vid_frames = vu.get_frames(vid_path, frame_diff=frame_diff)
         # Get the features of all frames of the video
         frames_features = sfv.get_video_style_features(vid_frames, model, device, transform, layers)
@@ -139,7 +139,7 @@ def init_vqa(model_name, vqa_dataset, cross_dataset=None):
         
     
     # Specify whether or not extract features from frame differences
-    frame_diff = True
+    frame_diff = False
     
     # Check if there is a GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -159,12 +159,12 @@ def main():
     # Initialize vqa
     model, device, vqa_dataset, cross_dataset, frame_size, center_crop, layers,\
                                     diff_layer, frame_diff = init_vqa('inceptionv3',
-                                                                      'konvid1k')
+                                                                      'konvid1k', 'live_vqc')
     # Get video level features by pooling frame level features
     pooled_feats, scores = video_level_feats(model, device, vqa_dataset, layers, diff_layer,
                                              frame_size, center_crop, frame_diff)
     
-    if cross_dataset == 'live':
+    if cross_dataset:
         # Get video level features by pooling features of consecutive frames' differences
         c_pooled_feats, c_scores = video_level_feats(model, device, cross_dataset, layers, diff_layer,
                                              frame_size, center_crop, frame_diff)
