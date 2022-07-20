@@ -162,9 +162,10 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
     y = np.array(y).reshape(-1, 1)
     
     SROCC_coef, SROCC_p, PLCC = [], [], []
-    
+    CROSS_SROCC, CROSS_PLCC = None, None
     # if cross dataset validation is required
     if Xc is not None:
+        CROSS_SROCC, CROSS_PLCC = [], []
         # Turn y into a 2D array to match StandardScalar() input
         # yc = np.array(yc).reshape(-1, 1)
         # sc = StandardScaler()
@@ -178,7 +179,7 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
         kfold = KFold(n_splits=5, shuffle=True)
         
         for train_idx, test_idx in kfold.split(X):
-            print(f'Test index = {test_idx}')
+            # print(f'Test index = {test_idx}')
             X_train, X_test = X[train_idx], X[test_idx]
             y_train, y_test = y[train_idx], y[test_idx]
             
@@ -219,10 +220,10 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
             SROCC_p.append(p)
             PLCC.append(corr)
                         
-            print(f'Target Mos = {y_test.squeeze()}')
-            print(f'Predicted Mos = {y_pred.squeeze()}')
+            # print(f'Target Mos = {y_test.squeeze()}')
+            # print(f'Predicted Mos = {y_pred.squeeze()}')
             print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
-            print('*' * 50)
+            print('-' * 50)
             
             # if cross dataset validation is required
             if Xc is not None:
@@ -242,13 +243,17 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
                 coef_c, pc = spearmanr(ycs.squeeze(), yc_pred.squeeze())
                 # Calculate the Pearson correlation
                 corr_c, _ = pearsonr(ycs.squeeze(), yc_pred.squeeze())
+                
+                CROSS_SROCC.append(coef_c)
+                CROSS_PLCC.append(corr_c)
+                
                 print(f'\nCross Dataset SROCC = {coef_c:.4f} with p = {pc:.4f}, Cross Dataset PLCC = {corr_c:.4f}')
                 print('*' * 50)
-         
+                 
             
                 # Plot the correlation between ground-truth and predicted scores             
                 sns.set(style='darkgrid')
-                scatter_plot = sns.relplot(x=yc.squeeze(), y=yc_pred.squeeze(),
+                scatter_plot = sns.relplot(x=yc.squeeze(), y=yc_pred.squeeze() * 100,
                                            kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
                                            xlabel='Cross Dataset Score', ylabel='Predicted Score');
                 scatter_plot.savefig(f'{len(SROCC_coef)}_{abs(coef):.4f}_c.png')
@@ -262,7 +267,7 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
             
             scatter_plot.savefig(f'{len(SROCC_coef)}_{abs(coef):.4f}.png')
         
-    return SROCC_coef, SROCC_p, PLCC
+    return SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC
     
         
 def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
@@ -282,9 +287,9 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
     if dataset.upper() == 'LIVE':
         SROCC_coef, SROCC_p, PLCC = live_dataset_regression(X, y, regression_method='svr')
     elif dataset.upper() == 'KONVID1K':
-        SROCC_coef, SROCC_p, PLCC = konvid1k_dataset_regression(X, y, Xc, yc, regression_method='svr')
+        SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC= konvid1k_dataset_regression(X, y, Xc, yc,
+                                                                                        regression_method='svr')
         
-    
     # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
     with np.printoptions(precision=4, suppress=True):
         print(f'SROCC_coef = {np.array(SROCC_coef)}')
@@ -294,6 +299,14 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
         print(f'PLCC = {np.array(PLCC)}')
         print(f'PLCCs average = {np.mean(np.abs(PLCC))}')
         print(f'PLCCs median = {np.median(np.abs(PLCC))}')
+        if Xc is not None:
+            print(f'SROCC_coef = {np.array(CROSS_SROCC)}')
+            print(f'SROCC_coefs average = {np.mean(np.abs(CROSS_SROCC))}')
+            print(f'SROCC_coefs median = {np.median(np.abs(CROSS_SROCC))}')
+            print(f'PLCC = {np.array(CROSS_PLCC)}')
+            print(f'PLCCs average = {np.mean(np.abs(CROSS_PLCC))}')
+            print(f'PLCCs median = {np.median(np.abs(CROSS_PLCC))}')
+            
         
                 
             

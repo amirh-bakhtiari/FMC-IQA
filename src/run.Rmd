@@ -19,6 +19,7 @@ from torchvision import models
 from torchvision import transforms
 from pathlib import Path
 from tqdm import tqdm
+from torchvision.models.feature_extraction import create_feature_extractor
 
 import DatasetHandler as dh
 import pooling
@@ -29,7 +30,7 @@ import VideoUtility as vu
 
 ```{python tags=c()}
 def videoset_frame_feats(model, device, video_list: str, video_path: str, transform, 
-                          dataset: str = 'LIVE', *, layers, frame_diff=False) -> list:
+                          dataset: str = 'LIVE', *, frame_diff=False) -> list:
     '''Get the VQA dataset video names and scores, set a feature extractor model,
        get frames of each video, then get features of each frame in videos
        
@@ -40,7 +41,8 @@ def videoset_frame_feats(model, device, video_list: str, video_path: str, transf
     :param fine_tune: use fine-tuned model if True
     :return: videos' frames features of dimension and videos scores (DMOS)
     '''
-       
+    
+    # feature_extractor = create_feature_extractor(model, return_nodes=['6.7.add'])
     # Convert the path string to a pathlib object
     video_path = Path(video_path)
     dataset = dataset.lower()
@@ -54,7 +56,7 @@ def videoset_frame_feats(model, device, video_list: str, video_path: str, transf
         else:
             vid_frames = vu.get_frames(vid_path, frame_diff=frame_diff)
         # Get the features of all frames of the video
-        frames_features = sfv.get_video_style_features(vid_frames, model, device, transform, layers)
+        frames_features = sfv.get_video_style_features(vid_frames, model, device, transform)
         frames_features = np.array(frames_features)
         # videos_frame_features.append(frames_features)
         yield frames_features
@@ -63,7 +65,7 @@ def videoset_frame_feats(model, device, video_list: str, video_path: str, transf
 ```
 
 ```{python}
-def video_level_feats(model, device, dataset, layers, diff_layer, frame_size, center_crop,
+def video_level_feats(ffeats_extractor, dfeats_extractor, device, dataset, frame_size, center_crop,
                       frame_diff: bool = False, pool_type='max'):
     '''Get frame level features and pool them to have video level features (representation)
     
@@ -85,16 +87,16 @@ def video_level_feats(model, device, dataset, layers, diff_layer, frame_size, ce
                                                                      frame_size=frame_size,
                                                                      center_crop=center_crop)
     # Get frame features of all videos in the dataset --------------------------------------*
-    videos_feats = videoset_frame_feats(model, device, video_list, video_path, transform,
-                                         dataset, layers=layers)
+    videos_features = videoset_frame_feats(ffeats_extractor, device, video_list, video_path, 
+                                        transform, dataset)
     # Pool the frame level features to get video level features
-    pooled_features = pooling.simple_pooling(videos_feats, pool_type=pool_type)
+    pooled_features = pooling.simple_pooling(videos_features, pool_type=pool_type)
     
     if frame_diff:
-        diff_feats = videoset_frame_feats(model, device, video_list, video_path, transform,
-                                           dataset, layers=diff_layer, frame_diff=frame_diff)
+        diff_features = videoset_frame_feats(dfeats_extractor, device, video_list, video_path, transform,
+                                           dataset, frame_diff=frame_diff)
         # Pool the frame level features to get video level features
-        pooled_diff = pooling.simple_pooling(diff_feats, pool_type=pool_type)
+        pooled_diff = pooling.simple_pooling(diff_features, pool_type=pool_type)
         
         # Concatenate the pooled features from frames and frame differences
         pooled_features = np.concatenate((pooled_features, pooled_diff), axis=1)
@@ -119,7 +121,6 @@ def init_vqa(model_name, vqa_dataset, cross_dataset=None):
                   '5': 'conv2_1', 
                   # '10': 'conv3_1', 
                   # '19': 'conv4_1',
-                  # '20': 'conv4_2',  
                   }
         # Layer for getting features from frame differences
         diff_layer = {'20': 'conv4_2'}
@@ -136,7 +137,19 @@ def init_vqa(model_name, vqa_dataset, cross_dataset=None):
                   }
         # Layer for getting features from frame differences
         diff_layer = {'avgpool': 'avgpool'}
-        
+    
+    # EfficientNet B4 layers
+    elif model_name == 'efficientnet':
+        frame_size, center_crop = 384, 380
+        # Specify the layers to get style features from EfficientNet B4
+        layers = {
+                  'features.3.3.add': 'features.3.3.add',
+                  'features.4.4.add': 'features.4.4.add',  
+                  'features.5.5.add': 'features.5.5.add',
+                  'avgpool': 'avgpool',
+                  }
+        # Layer for getting features from frame differences
+        diff_layer = {'avgpool': 'avgpool'}        
     
     # Specify whether or not extract features from frame differences
     frame_diff = False
@@ -144,11 +157,12 @@ def init_vqa(model_name, vqa_dataset, cross_dataset=None):
     # Check if there is a GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # Set the frame features extractor model (VGG19)
-    model = sfv.set_sf_model(device, fine_tune=False, model_name=model_name,
-                             frame_size=frame_size, center_crop=center_crop)
+    ffeats_extractor, dfeats_extractor = sfv.set_feats_extractor(device, model_name, layers, diff_layer,
+                                                                 fine_tune=False, frame_size=frame_size,
+                                                                 center_crop=center_crop)
                 
-    return model, device, vqa_dataset, cross_dataset, frame_size, center_crop, layers, diff_layer, frame_diff
-    
+    return ffeats_extractor, dfeats_extractor, device, vqa_dataset, cross_dataset, frame_size,\
+                                                                        center_crop, frame_diff    
 ```
 
 ```{python}
@@ -157,17 +171,17 @@ def main():
     '''Run the whole process of VQA
     '''
     # Initialize vqa
-    model, device, vqa_dataset, cross_dataset, frame_size, center_crop, layers,\
-                                    diff_layer, frame_diff = init_vqa('inceptionv3',
-                                                                      'konvid1k', 'live_vqc')
+    ffeats_extractor, dfeats_extractor, device, vqa_dataset, cross_dataset, frame_size, center_crop,\
+                                                                   frame_diff = init_vqa('efficientnet', 
+                                                                                         'konvid1k')
     # Get video level features by pooling frame level features
-    pooled_feats, scores = video_level_feats(model, device, vqa_dataset, layers, diff_layer,
+    pooled_feats, scores = video_level_feats(ffeats_extractor, dfeats_extractor, device, vqa_dataset,
                                              frame_size, center_crop, frame_diff)
     
     if cross_dataset:
         # Get video level features by pooling features of consecutive frames' differences
-        c_pooled_feats, c_scores = video_level_feats(model, device, cross_dataset, layers, diff_layer,
-                                             frame_size, center_crop, frame_diff)
+        c_pooled_feats, c_scores = video_level_feats(ffeats_extractor, dfeats_extractor, device,
+                                                     cross_dataset, frame_size, center_crop, frame_diff)
     else:
         c_pooled_feats, c_scores = None, None
         
@@ -179,6 +193,10 @@ def main():
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
     main()
+```
+
+```{python}
+
 ```
 
 ```{python}
