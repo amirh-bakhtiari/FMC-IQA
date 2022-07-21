@@ -284,9 +284,9 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
     if Xc is not None:
         print(f'{Xc.shape = } {yc.shape = }')
     
-    if dataset.upper() == 'LIVE':
+    if dataset.lower() == 'live':
         SROCC_coef, SROCC_p, PLCC = live_dataset_regression(X, y, regression_method='svr')
-    elif dataset.upper() == 'KONVID1K':
+    elif (dataset.lower() == 'konvid1k' or dataset.lower() == 'koniq10k'):
         SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC= konvid1k_dataset_regression(X, y, Xc, yc,
                                                                                         regression_method='svr')
         

@@ -125,8 +125,64 @@ def get_videoset_info(dataset='LIVE', frame_size: int = 224, center_crop: int = 
     
     return videos, scores, frm_transform, video_path
 
+def get_koniq10k_info(file_path):
+    '''Get KonIQ-10k IQA dataset annotation file and extract image file names and their
+       corresponding MOS ranging from 1 to 5
+       
+    :param file_path: the path to dataset info file
+    :return: image names and their MOS
+    '''
+    
+    # Read the dataframe of the dataset which includes the images' names and their MOS
+    df = pd.read_csv(file_path)
+    mos = df.get('MOS').values
+    images = df.get('image_name').values
+    
+    # Convert the ndarray to a list of strings
+    images = [str(image) for image in images]
+    
+    return images, mos
+    
+
+def get_imageset_info(dataset='koniq10k', frame_size: int = 224, center_crop: int = 224, framework='pytorch'):
+    '''Given the name of the image dataset, get the list of respective image names and their scores,
+       and set the preprocessing method.
+       
+    :param dataset: name of a IQA dataset
+    :param frame_size: frame size according to the input of the pretrained model
+    :param center_crop: used to crop the frame if frame_size is bigger than input of the model
+    :param framework: deep learning framework
+    :return: list of video names, their scores, the preprocessing module, and the videos' directory
+    '''
+    dataset = dataset.lower()
+    # Read the dataset info from the yaml file
+    dataset_info = read_yaml('iqa_dataset_info.yaml')
+    annotations_file_1 = dataset_info.get(dataset).get('annotations_file_1')
+    annotations_file_2 = dataset_info.get(dataset).get('annotations_file_2')
+    # Get the images directory
+    images_path = dataset_info.get(dataset).get('img_dir')
+    
+    if dataset == 'koniq10k':
+        images, scores = get_koniq10k_info(annotations_file_1)
+    
+    if framework == 'pytorch':
+        # pytorch specific preprocessing
+        # values of means and stds in Normalize are the ones used for ImageNet
+        transform = transforms.Compose([transforms.Resize(frame_size),
+                                        transforms.CenterCrop(center_crop),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize((0.485, 0.456, 0.406),
+                                                                 (0.229, 0.224, 0.225))])
+    elif framework == 'keras':
+        ## TODO
+        pass
+    
+    return images, scores, transform, images_path
+
 
 def read_yaml(file_path):
+    '''Read a yaml file
+    '''
     loader = yaml.SafeLoader
     with open(file_path) as f:
         return yaml.load(f, loader)

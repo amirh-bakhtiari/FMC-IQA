@@ -18,6 +18,7 @@ import torch
 from torchvision import models
 from torchvision import transforms
 from pathlib import Path
+from PIL import Image
 from tqdm import tqdm
 from torchvision.models.feature_extraction import create_feature_extractor
 
@@ -28,84 +29,60 @@ import SFVQA as sfv
 import VideoUtility as vu
 ```
 
-```{python tags=c()}
-def videoset_frame_feats(model, device, video_list: str, video_path: str, transform, 
-                          dataset: str = 'LIVE', *, frame_diff=False) -> list:
-    '''Get the VQA dataset video names and scores, set a feature extractor model,
-       get frames of each video, then get features of each frame in videos
-       
-    :param video_list: list of video sequences name
-    :param video_path: videos' directory
-    :param transform: preprocessing pipeline
-    :param dataset: name of the VQA dataset to extract the features from
-    :param fine_tune: use fine-tuned model if True
-    :return: videos' frames features of dimension and videos scores (DMOS)
+```{python}
+def load_image(path, transform, device):
+    '''Load in and transform an image, then move it to the specified device ('cpu' or 'cuda')
     '''
     
-    # feature_extractor = create_feature_extractor(model, return_nodes=['6.7.add'])
-    # Convert the path string to a pathlib object
-    video_path = Path(video_path)
-    dataset = dataset.lower()
-    # videos_frame_features = []
-    for seq in tqdm(video_list):
-        # Concatenate the video sequence name to the video directory to get the full video path
-        vid_path = str(video_path / seq)
-        if dataset == 'live':
-            # Get frames of the video of the dimension 768 * 432 (LIVE VQA videos)
-            vid_frames = vu.get_frames(vid_path, height=432, width=768)
-        else:
-            vid_frames = vu.get_frames(vid_path, frame_diff=frame_diff)
-        # Get the features of all frames of the video
-        frames_features = sfv.get_video_style_features(vid_frames, model, device, transform)
-        frames_features = np.array(frames_features)
-        # videos_frame_features.append(frames_features)
-        yield frames_features
+    image = Image.open(path)
     
-    # return videos_frame_features, scores
+    # discard the transparent, alpha channel (that's the :3) and add the batch dimension
+    image = transform(image)[:3, :, :].unsqueeze(0).to(device)
+    
+    return image
 ```
 
 ```{python}
-def video_level_feats(ffeats_extractor, dfeats_extractor, device, dataset, frame_size, center_crop,
-                      frame_diff: bool = False, pool_type='max'):
-    '''Get frame level features and pool them to have video level features (representation)
+def imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop):
+    '''Get images features in a dataset
     
-    :param model: feature extractor model object
+    :param ffeats_extractor: feature extractor model object
     :param device: torch.device for torch tensors, which can be of cuda or cpu type
     :param dataset: VQA dataset, to extract its frames'features
-    :param layers: layers in extractor model to get frame features from
-    :param diff_layer: layers in extractor model to get feats of consecutive frames' differences from
     :prama frame_size: the size to which frames are resized
     :param center_crop: the size to crop a center patch from the resized frame
-    :param frame_diff: indicate if features of frame differences are required
-    :param pool_type: for simple pooling, the method of pooling frame level feats of a video
-    :return: pooled frame features of videos, video quality scores 
-    
+    :return: features of images, images' quality scores 
     '''
     
-    # Get the list of videos and corresponding scores and preprocessing module of cross dataset
-    video_list, scores, transform, video_path = dh.get_videoset_info(dataset=dataset,
-                                                                     frame_size=frame_size,
-                                                                     center_crop=center_crop)
-    # Get frame features of all videos in the dataset --------------------------------------*
-    videos_features = videoset_frame_feats(ffeats_extractor, device, video_list, video_path, 
-                                        transform, dataset)
-    # Pool the frame level features to get video level features
-    pooled_features = pooling.simple_pooling(videos_features, pool_type=pool_type)
+    # Get the list of images and corresponding scores and preprocessing module of dataset
+    images_list, scores, transform, images_path = dh.get_imageset_info(dataset=dataset,
+                                                                       frame_size=frame_size,
+                                                                       center_crop=center_crop)
     
-    if frame_diff:
-        diff_features = videoset_frame_feats(dfeats_extractor, device, video_list, video_path, transform,
-                                           dataset, frame_diff=frame_diff)
-        # Pool the frame level features to get video level features
-        pooled_diff = pooling.simple_pooling(diff_features, pool_type=pool_type)
+    images_features = []
+    for image in tqdm(images_list):
+        # Load in the image
+        img_path = Path(images_path) / image
+        img = load_image(img_path, transform, device)
         
-        # Concatenate the pooled features from frames and frame differences
-        pooled_features = np.concatenate((pooled_features, pooled_diff), axis=1)
+        # Get features maps of all frames from the specified layers
+        features = ffeats_extractor(img)
+        image_gram_matrices = []
+        for layer, feature_maps in features.items():
+            # If the layer is used for getting style features
+            if layer != 'avgpool':
+                image_gram_matrices.extend(sfv.gram_matrix(feature_maps).cpu().numpy())
+            else: # If the layer is used for getting content (CNN) features 
+                image_gram_matrices.extend(feature_maps.flatten().cpu().numpy())
+        
+        images_features.append(image_gram_matrices)
+        
     
-    return pooled_features, scores
+    return np.array(images_features), scores
 ```
 
 ```{python tags=c()}
-def init_vqa(model_name, vqa_dataset, cross_dataset=None):
+def init_iqa(model_name, vqa_dataset, cross_dataset=None):
     ''' Set the frame feature extractor model, VQA dataset and frame size
     
     :param model_name: name of the feature extractor model, 'inceptionv3', 'vgg19':
@@ -122,8 +99,6 @@ def init_vqa(model_name, vqa_dataset, cross_dataset=None):
                   # '10': 'conv3_1', 
                   # '19': 'conv4_1',
                   }
-        # Layer for getting features from frame differences
-        diff_layer = {'20': 'conv4_2'}
         
     elif model_name == 'inceptionv3':
         frame_size, center_crop = 338, 299
@@ -135,34 +110,24 @@ def init_vqa(model_name, vqa_dataset, cross_dataset=None):
                   # 'Mixed_5c': 'Mixed_2',
                   'avgpool': 'avgpool'
                   }
-        # Layer for getting features from frame differences
-        diff_layer = {'avgpool': 'avgpool'}
     
     # EfficientNet B4 layers
     elif model_name == 'efficientnet':
         frame_size, center_crop = 384, 380
         # Specify the layers to get style features from EfficientNet B4
         layers = {
-                  'features.3.3.add': 'features.3.3.add',
-                  'features.4.4.add': 'features.4.4.add',  
-                  'features.5.5.add': 'features.5.5.add',
+                  # 'features.3.3.add': 'features.3.3.add',
+                  # 'features.4.4.add': 'features.4.4.add',  
+                  # 'features.5.5.add': 'features.5.5.add',
                   'avgpool': 'avgpool',
                   }
-        # Layer for getting features from frame differences
-        diff_layer = {'avgpool': 'avgpool'}        
-    
-    # Specify whether or not extract features from frame differences
-    frame_diff = False
-    
+        
     # Check if there is a GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # Set the frame features extractor model (VGG19)
-    ffeats_extractor, dfeats_extractor = sfv.set_feats_extractor(device, model_name, layers, diff_layer,
-                                                                 fine_tune=False, frame_size=frame_size,
-                                                                 center_crop=center_crop)
+    ffeats_extractor, _ = sfv.set_feats_extractor(device, model_name, layers)
                 
-    return ffeats_extractor, dfeats_extractor, device, vqa_dataset, cross_dataset, frame_size,\
-                                                                        center_crop, frame_diff    
+    return ffeats_extractor, device, vqa_dataset, cross_dataset, frame_size, center_crop   
 ```
 
 ```{python}
@@ -171,22 +136,20 @@ def main():
     '''Run the whole process of VQA
     '''
     # Initialize vqa
-    ffeats_extractor, dfeats_extractor, device, vqa_dataset, cross_dataset, frame_size, center_crop,\
-                                                                   frame_diff = init_vqa('efficientnet', 
-                                                                                         'konvid1k')
+    ffeats_extractor, device, dataset, cross_dataset, frame_size,\
+                                                        center_crop = init_iqa('efficientnet', 'koniq10k')
     # Get video level features by pooling frame level features
-    pooled_feats, scores = video_level_feats(ffeats_extractor, dfeats_extractor, device, vqa_dataset,
-                                             frame_size, center_crop, frame_diff)
+    images_features, scores = imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop)
     
     if cross_dataset:
         # Get video level features by pooling features of consecutive frames' differences
-        c_pooled_feats, c_scores = video_level_feats(ffeats_extractor, dfeats_extractor, device,
-                                                     cross_dataset, frame_size, center_crop, frame_diff)
+        c_images_feats, c_scores = imageset_features(ffeats_extractor, device,
+                                                     cross_dataset, frame_size, center_crop)
     else:
-        c_pooled_feats, c_scores = None, None
+        c_images_feats, c_scores = None, None
         
     # Train a regressor using video level features and indicate how well it predicts the scores
-    reg.regression(pooled_feats, scores, c_pooled_feats, c_scores, 'svr', vqa_dataset)               
+    reg.regression(images_features, scores, c_images_feats, c_scores, 'svr', dataset)               
 ```
 
 ```{python tags=c()}
