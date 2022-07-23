@@ -9,4 +9,8 @@ koniq10k:
   annotations_file_1: /media/amirh/Programs/Projects/IQA_Datasets/KonIQ-10k/koniq10k_scores/koniq10k_scores_and_distributions.csv
   annotations_file_2: null
   img_dir: /media/amirh/Programs/Projects/IQA_Datasets/KonIQ-10k/1024x768
-    
+# LIVE-itw IQA Dataset
+live_itw:
+  annotations_file_1: /media/amirh/Programs/Projects/IQA_Datasets/LIVE_itw/ChallengeDB_release/Data/AllImages_release.mat
+  annotations_file_2: /media/amirh/Programs/Projects/IQA_Datasets/LIVE_itw/ChallengeDB_release/Data/AllMOS_release.mat
+  img_dir: /media/amirh/Programs/Projects/IQA_Datasets/LIVE_itw/ChallengeDB_release/Images

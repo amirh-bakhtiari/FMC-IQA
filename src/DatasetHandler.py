@@ -142,6 +142,20 @@ def get_koniq10k_info(file_path):
     images = [str(image) for image in images]
     
     return images, mos
+
+def get_live_itw_info(image_file: str, mos_file: str):
+    '''Get LIVE-itW IQA dataset annotation files and extract image file names and their
+       corresponding MOS
+    '''
+    
+    # Read the mat file of the dataset which includes the images' names and their MOS
+    mos = scipy.io.loadmat(mos_file)
+    images = scipy.io.loadmat(image_file)
+    
+    mos = mos['AllMOS_release'][0]
+    images = [item[0][0] for item in images['AllImages_release']]
+    
+    return images, mos
     
 
 def get_imageset_info(dataset='koniq10k', frame_size: int = 224, center_crop: int = 224, framework='pytorch'):
@@ -164,6 +178,8 @@ def get_imageset_info(dataset='koniq10k', frame_size: int = 224, center_crop: in
     
     if dataset == 'koniq10k':
         images, scores = get_koniq10k_info(annotations_file_1)
+    elif dataset == 'live_itw':
+        images, scores = get_live_itw_info(annotations_file_1, annotations_file_2)
     
     if framework == 'pytorch':
         # pytorch specific preprocessing

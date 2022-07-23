@@ -173,7 +173,7 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
         ycs = yc / 100.0
     
     # Repeat K-fold cross validation 10 times
-    for _ in range(10):
+    for _ in range(20):
         
         # Use K-Fold Cross Validation for evaluation
         kfold = KFold(n_splits=5, shuffle=True)
