@@ -286,7 +286,7 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
     
     if dataset.lower() == 'live':
         SROCC_coef, SROCC_p, PLCC = live_dataset_regression(X, y, regression_method='svr')
-    elif (dataset.lower() == 'konvid1k' or dataset.lower() == 'koniq10k'):
+    elif (dataset.lower() == 'konvid1k' or dataset.lower() == 'koniq10k' or dataset.lower() == 'clive'):
         SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC= konvid1k_dataset_regression(X, y, Xc, yc,
                                                                                         regression_method='svr')
         

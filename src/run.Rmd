@@ -138,8 +138,7 @@ def main():
     # Initialize vqa
     ffeats_extractor, device, dataset, cross_dataset, frame_size,\
                                                         center_crop = init_iqa('efficientnet',
-                                                                               'koniq10k',
-                                                                               'live_itw')
+                                                                               'koniq10k')
     # Get video level features by pooling frame level features
     images_features, scores = imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop)
     

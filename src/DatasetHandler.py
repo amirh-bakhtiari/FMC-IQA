@@ -143,8 +143,8 @@ def get_koniq10k_info(file_path):
     
     return images, mos
 
-def get_live_itw_info(image_file: str, mos_file: str):
-    '''Get LIVE-itW IQA dataset annotation files and extract image file names and their
+def get_clive_info(image_file: str, mos_file: str):
+    '''Get CLIVE in the wild IQA dataset annotation files and extract image file names and their
        corresponding MOS
     '''
     
@@ -178,13 +178,14 @@ def get_imageset_info(dataset='koniq10k', frame_size: int = 224, center_crop: in
     
     if dataset == 'koniq10k':
         images, scores = get_koniq10k_info(annotations_file_1)
-    elif dataset == 'live_itw':
-        images, scores = get_live_itw_info(annotations_file_1, annotations_file_2)
+    elif dataset == 'clive':
+        images, scores = get_clive_info(annotations_file_1, annotations_file_2)
     
     if framework == 'pytorch':
         # pytorch specific preprocessing
         # values of means and stds in Normalize are the ones used for ImageNet
-        transform = transforms.Compose([transforms.Resize(frame_size),
+        transform = transforms.Compose([
+                                        # transforms.Resize(frame_size),
                                         transforms.CenterCrop(center_crop),
                                         transforms.ToTensor(),
                                         transforms.Normalize((0.485, 0.456, 0.406),
