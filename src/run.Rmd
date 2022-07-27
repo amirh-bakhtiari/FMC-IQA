@@ -117,9 +117,10 @@ def init_iqa(model_name, vqa_dataset, cross_dataset=None):
         # Specify the layers to get style features from EfficientNet B4
         layers = {
                   'features.3.3.add': 'features.3.3.add',
-                  # 'features.4.4.add': 'features.4.4.add',  
-                  # 'features.5.5.add': 'features.5.5.add',
-                  # 'avgpool': 'avgpool',
+                  'features.4.4.add': 'features.4.4.add',  
+                  'features.5.5.add': 'features.5.5.add',
+                  # 'features.6.3.add': 'features.6.3.add',
+                  'avgpool': 'avgpool',
                   }
         
     # Check if there is a GPU
@@ -138,7 +139,7 @@ def main():
     # Initialize vqa
     ffeats_extractor, device, dataset, cross_dataset, frame_size,\
                                                         center_crop = init_iqa('efficientnet',
-                                                                               'koniq10k')
+                                                                               'clive')
     # Get video level features by pooling frame level features
     images_features, scores = imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop)
     
