@@ -62,7 +62,9 @@ def set_feats_extractor(device, model_name='efficientnet', frame_layers={'avgpoo
             model.to(device)
     
     elif model_name == 'efficientnet':
-        model = models.efficientnet_b4(pretrained=True)
+        # model = models.efficientnet_b4(pretrained=True)
+        # model = models.efficientnet_v2_s(weights='IMAGENET1K_V1')
+        model = models.efficientnet_v2_m(weights='IMAGENET1K_V1')
 
         # Put the model in inference mode
         model.eval()
@@ -133,7 +135,7 @@ def get_video_style_features(video, model, device, transform, hist_feat=False, b
         # Get flattened gram matrix of each frame and concatenate them as the new frame features
         for layer, feature_maps in features.items():
             # If the layer is used for getting style features
-            if layer != 'avgpool':
+            if layer != 'avgpool' and layer != 'flatten':
                 frame_gram_matrices.extend(gram_matrix(feature_maps).cpu().numpy())
             else: # If the layer is used for getting content (CNN) features 
                 frame_gram_matrices.extend(feature_maps.flatten().cpu().numpy())

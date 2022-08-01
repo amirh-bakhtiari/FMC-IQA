@@ -256,7 +256,7 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
                 scatter_plot = sns.relplot(x=yc.squeeze(), y=yc_pred.squeeze() * 100,
                                            kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
                                            xlabel='Cross Dataset Score', ylabel='Predicted Score');
-                scatter_plot.savefig(f'{len(SROCC_coef)}_{abs(coef):.4f}_c.png')
+                scatter_plot.savefig(f'plots/{len(SROCC_coef)}_{abs(coef):.4f}_c.png')
                 
             # Plot the correlation between ground-truth and predicted scores             
             sns.set(style='darkgrid')
@@ -265,7 +265,7 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
                                        xlabel='Ground-truth MOS', ylabel='Predicted Score');
             
             
-            scatter_plot.savefig(f'{len(SROCC_coef)}_{abs(coef):.4f}.png')
+            scatter_plot.savefig(f'plots/{len(SROCC_coef)}_{abs(coef):.4f}.png')
         
     return SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC
     

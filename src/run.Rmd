@@ -1,6 +1,7 @@
 ---
 jupyter:
   jupytext:
+    formats: ipynb,Rmd
     text_representation:
       extension: .Rmd
       format_name: rmarkdown
@@ -70,7 +71,7 @@ def imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop
         image_gram_matrices = []
         for layer, feature_maps in features.items():
             # If the layer is used for getting style features
-            if layer != 'avgpool':
+            if layer != 'avgpool' and layer != 'flatten':
                 image_gram_matrices.extend(sfv.gram_matrix(feature_maps).cpu().numpy())
             else: # If the layer is used for getting content (CNN) features 
                 image_gram_matrices.extend(feature_maps.flatten().cpu().numpy())
@@ -113,14 +114,16 @@ def init_iqa(model_name, vqa_dataset, cross_dataset=None):
     
     # EfficientNet B4 layers
     elif model_name == 'efficientnet':
-        frame_size, center_crop = 423, 380
+        # frame_size, center_crop = 423, 380  # EfficientNet_B4
+        # frame_size, center_crop = 427, 384  # EfficientNet_V2_S
+        frame_size, center_crop = 534, 480  # Efficientnet_v2_M
         # Specify the layers to get style features from EfficientNet B4
         layers = {
-                  'features.3.3.add': 'features.3.3.add',
-                  'features.4.4.add': 'features.4.4.add',  
+                  # 'features.3.3.add': 'features.3.3.add',
+                  # 'features.4.3.add': 'features.4.3.add',
                   'features.5.5.add': 'features.5.5.add',
-                  # 'features.6.3.add': 'features.6.3.add',
-                  'avgpool': 'avgpool',
+                  # 'avgpool': 'avgpool',
+                  # 'flatten': 'flatten'
                   }
         
     # Check if there is a GPU
