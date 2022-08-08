@@ -6,7 +6,8 @@ from scipy.stats.mstats import pearsonr
 from sklearn.model_selection import KFold
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVR
+# from sklearn.svm import SVR
+from sklearnex.svm import SVR
 
 import DatasetHandler as dh
 

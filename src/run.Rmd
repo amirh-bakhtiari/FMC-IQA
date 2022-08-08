@@ -14,8 +14,8 @@ jupyter:
 ---
 
 ```{python tags=c()}
-import numpy as np
 import torch
+import numpy as np
 from torchvision import models
 from torchvision import transforms
 from pathlib import Path
@@ -31,12 +31,23 @@ import VideoUtility as vu
 ```
 
 ```{python}
-def load_image(path, transform, device):
+def load_image(path, device, frame_size, center_crop, min_size=510):
     '''Load in and transform an image, then move it to the specified device ('cpu' or 'cuda')
     '''
     
     image = Image.open(path)
     
+    # large images will slow down processing
+    if max(image.size) > min_size:
+        size = frame_size
+    else:
+        size = max(image.size)
+    
+    transform = transforms.Compose([transforms.Resize(size),
+                                    transforms.CenterCrop(center_crop),
+                                    transforms.ToTensor(),
+                                    transforms.Normalize((0.485, 0.456, 0.406),
+                                                                 (0.229, 0.224, 0.225))])
     # discard the transparent, alpha channel (that's the :3) and add the batch dimension
     image = transform(image)[:3, :, :].unsqueeze(0).to(device)
     
@@ -56,15 +67,13 @@ def imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop
     '''
     
     # Get the list of images and corresponding scores and preprocessing module of dataset
-    images_list, scores, transform, images_path = dh.get_imageset_info(dataset=dataset,
-                                                                       frame_size=frame_size,
-                                                                       center_crop=center_crop)
+    images_list, scores, images_path = dh.get_imageset_info(dataset=dataset)
     
     images_features = []
     for image in tqdm(images_list):
         # Load in the image
         img_path = Path(images_path) / image
-        img = load_image(img_path, transform, device)
+        img = load_image(img_path, device, frame_size, center_crop)
         
         # Get features maps of all frames from the specified layers
         features = ffeats_extractor(img)
@@ -114,15 +123,15 @@ def init_iqa(model_name, vqa_dataset, cross_dataset=None):
     
     # EfficientNet B4 layers
     elif model_name == 'efficientnet':
-        # frame_size, center_crop = 423, 380  # EfficientNet_B4
+        frame_size, center_crop = 423, 380  # EfficientNet_B4
         # frame_size, center_crop = 427, 384  # EfficientNet_V2_S
-        frame_size, center_crop = 534, 480  # Efficientnet_v2_M
+        # frame_size, center_crop = 534, 480  # Efficientnet_v2_M
         # Specify the layers to get style features from EfficientNet B4
         layers = {
-                  # 'features.3.3.add': 'features.3.3.add',
-                  # 'features.4.3.add': 'features.4.3.add',
+                  'features.3.3.add': 'features.3.3.add',
+                  'features.4.4.add': 'features.4.4.add',
                   'features.5.5.add': 'features.5.5.add',
-                  # 'avgpool': 'avgpool',
+                  'avgpool': 'avgpool',
                   # 'flatten': 'flatten'
                   }
         
@@ -142,7 +151,7 @@ def main():
     # Initialize vqa
     ffeats_extractor, device, dataset, cross_dataset, frame_size,\
                                                         center_crop = init_iqa('efficientnet',
-                                                                               'clive')
+                                                                               'koniq10k', 'clive')
     # Get video level features by pooling frame level features
     images_features, scores = imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop)
     

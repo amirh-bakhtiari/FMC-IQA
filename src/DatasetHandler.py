@@ -158,7 +158,7 @@ def get_clive_info(image_file: str, mos_file: str):
     return images, mos
     
 
-def get_imageset_info(dataset='koniq10k', frame_size: int = 224, center_crop: int = 224, framework='pytorch'):
+def get_imageset_info(dataset='koniq10k'):
     '''Given the name of the image dataset, get the list of respective image names and their scores,
        and set the preprocessing method.
        
@@ -180,21 +180,8 @@ def get_imageset_info(dataset='koniq10k', frame_size: int = 224, center_crop: in
         images, scores = get_koniq10k_info(annotations_file_1)
     elif dataset == 'clive':
         images, scores = get_clive_info(annotations_file_1, annotations_file_2)
-    
-    if framework == 'pytorch':
-        # pytorch specific preprocessing
-        # values of means and stds in Normalize are the ones used for ImageNet
-        transform = transforms.Compose([
-                                        # transforms.Resize(frame_size),
-                                        transforms.CenterCrop(center_crop),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize((0.485, 0.456, 0.406),
-                                                                 (0.229, 0.224, 0.225))])
-    elif framework == 'keras':
-        ## TODO
-        pass
-    
-    return images, scores, transform, images_path
+       
+    return images, scores, images_path
 
 
 def read_yaml(file_path):

@@ -62,9 +62,9 @@ def set_feats_extractor(device, model_name='efficientnet', frame_layers={'avgpoo
             model.to(device)
     
     elif model_name == 'efficientnet':
-        # model = models.efficientnet_b4(pretrained=True)
+        model = models.efficientnet_b4(pretrained=True)
         # model = models.efficientnet_v2_s(weights='IMAGENET1K_V1')
-        model = models.efficientnet_v2_m(weights='IMAGENET1K_V1')
+        # model = models.efficientnet_v2_m(weights='IMAGENET1K_V1')
 
         # Put the model in inference mode
         model.eval()
