@@ -151,7 +151,7 @@ def main():
     # Initialize vqa
     ffeats_extractor, device, dataset, cross_dataset, frame_size,\
                                                         center_crop = init_iqa('efficientnet',
-                                                                               'koniq10k', 'clive')
+                                                                               'clive',)
     # Get video level features by pooling frame level features
     images_features, scores = imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop)
     
@@ -163,7 +163,7 @@ def main():
         c_images_feats, c_scores = None, None
         
     # Train a regressor using video level features and indicate how well it predicts the scores
-    reg.regression(images_features, scores, c_images_feats, c_scores, 'svr', dataset)               
+    reg.regression(images_features, scores, c_images_feats, c_scores, 'svr', dataset, cross_dataset)               
 ```
 
 ```{python tags=c()}

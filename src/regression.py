@@ -149,7 +149,7 @@ def live_dataset_regression(X, y, regression_method='svr'):
         
         
         
-def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr'):
+def authentic_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='koniq10k', cross_dataset=None):
     '''Train an SVR Using the video level features and their corresponding scores from
        Konvid1k VQA dataset, predict the scores of test videos using the trained SVR. 
        Finally calculate the SROCC & PLCC.
@@ -167,11 +167,15 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
     # if cross dataset validation is required
     if Xc is not None:
         CROSS_SROCC, CROSS_PLCC = [], []
-        # Turn y into a 2D array to match StandardScalar() input
-        # yc = np.array(yc).reshape(-1, 1)
-        # sc = StandardScaler()
-        # ycs = sc.fit_transform(yc)
-        ycs = yc / 100.0
+        # Normalize the cross dataset scores
+        if cross_dataset == 'clive':
+            ycs = yc / 100.0
+        elif cross_dataset == 'koniq10k':
+            ycs = yc - 1
+            ycs /= 4.0
+        
+    dataset_corr_delim = '-' * 70 + '\n'
+    cross_corr_delim = '*' * 80 + '\n'
     
     # Repeat K-fold cross validation 10 times
     for _ in range(20):
@@ -223,8 +227,10 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
                         
             # print(f'Target Mos = {y_test.squeeze()}')
             # print(f'Predicted Mos = {y_pred.squeeze()}')
-            print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
-            print('-' * 50)
+            text = f'Spearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}\n'
+            with open('correlation.txt', 'a') as writer:
+                writer.write(text)
+                writer.write(dataset_corr_delim)
             
             # if cross dataset validation is required
             if Xc is not None:
@@ -237,8 +243,11 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
                 # Reverse the transform to get the real yc_pred
                 yc_pred = sc_y.inverse_transform(yc_pred)
                 
-                yc_pred -= 1
-                yc_pred /= 4.0
+                if dataset == 'koniq10k':
+                    yc_pred -= 1
+                    yc_pred /= 4.0
+                elif dataset == 'clive':
+                    yc_pred /= 100.0
               
                 # Calculate the Spearman rank-order correlation
                 coef_c, pc = spearmanr(ycs.squeeze(), yc_pred.squeeze())
@@ -248,15 +257,18 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
                 CROSS_SROCC.append(coef_c)
                 CROSS_PLCC.append(corr_c)
                 
-                print(f'\nCross Dataset SROCC = {coef_c:.4f} with p = {pc:.4f}, Cross Dataset PLCC = {corr_c:.4f}')
-                print('*' * 50)
-                 
+                text = f'Cross Dataset SROCC = {coef_c:.4f} with p = {pc:.4f}, Cross Dataset PLCC = {corr_c:.4f}\n'
+                with open('correlation.txt', 'a') as writer:
+                    writer.write(text)
+                    writer.write(cross_corr_delim)
+                    
             
                 # Plot the correlation between ground-truth and predicted scores             
                 sns.set(style='darkgrid')
                 scatter_plot = sns.relplot(x=yc.squeeze(), y=yc_pred.squeeze() * 100,
                                            kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
                                            xlabel='Cross Dataset Score', ylabel='Predicted Score');
+                plt.close()
                 scatter_plot.savefig(f'plots/{len(SROCC_coef)}_{abs(coef):.4f}_c.png')
                 
             # Plot the correlation between ground-truth and predicted scores             
@@ -265,13 +277,13 @@ def konvid1k_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr')
                                        kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
                                        xlabel='Ground-truth MOS', ylabel='Predicted Score');
             
-            
+            plt.close()
             scatter_plot.savefig(f'plots/{len(SROCC_coef)}_{abs(coef):.4f}.png')
         
     return SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC
     
         
-def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
+def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='koniq10k', cross_dataset=None):
     '''Get video features and scores and call the respective regressor according to the dataset name
     
     :param X: an array of video level features of all videos in the dataset
@@ -280,6 +292,7 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
     :param yc: an array scores of all videos in the cross dataset
     :param regression_method: 'svr' for SVR or 'nn' for multi layer neural network
     '''
+    # assert bool(Xc) == bool(cross_dataset), 'either features value or name of the cross dataset has not been provided.'
     
     print(f'{X.shape = } {y.shape = }')
     if Xc is not None:
@@ -287,27 +300,30 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='LIVE'):
     
     if dataset.lower() == 'live':
         SROCC_coef, SROCC_p, PLCC = live_dataset_regression(X, y, regression_method='svr')
-    elif (dataset.lower() == 'konvid1k' or dataset.lower() == 'koniq10k' or dataset.lower() == 'clive'):
-        SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC= konvid1k_dataset_regression(X, y, Xc, yc,
-                                                                                        regression_method='svr')
-        
+    else:
+        SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC= authentic_dataset_regression(X, y, Xc, yc,
+                                                                                        regression_method,
+                                                                                        dataset, 
+                                                                                        cross_dataset)
+    with open('correlation.txt', 'a') as writer:    
     # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
-    with np.printoptions(precision=4, suppress=True):
-        print(f'SROCC_coef = {np.array(SROCC_coef)}')
-        print(f'SROCC_coefs average = {np.mean(np.abs(SROCC_coef))}')
-        print(f'SROCC_coefs median = {np.median(np.abs(SROCC_coef))}')
-        print(f'SROCC_p = {np.array(SROCC_p)}')
-        print(f'PLCC = {np.array(PLCC)}')
-        print(f'PLCCs average = {np.mean(np.abs(PLCC))}')
-        print(f'PLCCs median = {np.median(np.abs(PLCC))}')
-        if Xc is not None:
-            print(f'SROCC_coef = {np.array(CROSS_SROCC)}')
-            print(f'SROCC_coefs average = {np.mean(np.abs(CROSS_SROCC))}')
-            print(f'SROCC_coefs median = {np.median(np.abs(CROSS_SROCC))}')
-            print(f'PLCC = {np.array(CROSS_PLCC)}')
-            print(f'PLCCs average = {np.mean(np.abs(CROSS_PLCC))}')
-            print(f'PLCCs median = {np.median(np.abs(CROSS_PLCC))}')
+        with np.printoptions(precision=4, suppress=True):
+            writer.write(f'SROCC_coef = {np.array(SROCC_coef)}\n')
+            writer.write(f'SROCC_coefs average = {np.mean(np.abs(SROCC_coef)): .4f}\n')
+            writer.write(f'SROCC_coefs median = {np.median(np.abs(SROCC_coef)): .4f}\n')
+            writer.write(f'SROCC_p = {np.array(SROCC_p)}\n')
+            writer.write(f'PLCC = {np.array(PLCC)}\n')
+            writer.write(f'PLCCs average = {np.mean(np.abs(PLCC)): .4f}\n')
+            writer.write(f'PLCCs median = {np.median(np.abs(PLCC)): .4f}\n')
+            if Xc is not None:
+                writer.write(f'SROCC_coef = {np.array(CROSS_SROCC)}\n')
+                writer.write(f'SROCC_coefs average = {np.mean(np.abs(CROSS_SROCC)): .4f}\n')
+                writer.write(f'SROCC_coefs median = {np.median(np.abs(CROSS_SROCC)): .4f}\n')
+                writer.write(f'PLCC = {np.array(CROSS_PLCC)}\n')
+                writer.write(f'PLCCs average = {np.mean(np.abs(CROSS_PLCC)): .4f}\n')
+                writer.write(f'PLCCs median = {np.median(np.abs(CROSS_PLCC)): .4f}\n')
             
+    print('Done!')        
         
                 
             
