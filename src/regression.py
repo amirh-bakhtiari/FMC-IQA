@@ -60,50 +60,109 @@ try:
 except ModuleNotFoundError:
     pass
     
+def normalize_cross_scores(cross_dataset, yc):
+    '''Normalize the cross dataset scores to be in the range [0, 1]
+    '''
+    
+    # Normalize the cross dataset scores
+    if cross_dataset == 'clive':
+        ycn = yc / 100.0
+    elif cross_dataset == 'koniq10k':
+        ycn = yc - 1
+        ycn /= 4.0
+    
+    return ycn
 
-def live_dataset_regression(X, y, regression_method='svr'):
-    '''Train an SVR Using the video level features and their corresponding scores from
-       LIVE VQA dataset, predict the scores of test videos using the trained SVR. 
+def calc_correlation(y_gt, y_pred, sc, dataset=None, delimiter='-'):
+    '''Calculate SROCC with p and PLCC
+    '''
+    # Turn y_pred into a 2D array to match StandardScalar() input
+    y_pred = y_pred.reshape(-1, 1)
+    # Inverse transform the predicted values to get the real values
+    y_pred = sc.inverse_transform(y_pred)
+    
+    # If dataset name has been given, normalize the results to compare with the cross dataset scores
+    if dataset == 'koniq10k':
+        y_pred -= 1
+        y_pred /= 4.0
+    elif dataset == 'clive':
+        y_pred /= 100.0
+
+    # Calculate the Spearman rank-order correlation
+    srocc, p = spearmanr(y_gt.squeeze(), y_pred.squeeze())
+
+    # Calculate the Pearson correlation
+    plcc, _ = pearsonr(y_gt.squeeze(), y_pred.squeeze())
+    
+    text = f'Spearman correlation = {srocc:.4f} with p = {p:.4f},  Pearson correlation = {plcc:.4f}\n'
+    with open('correlation.txt', 'a') as writer:
+        writer.write(text)
+        writer.write(delimiter * 70 + '\n')
+    
+    return srocc, p, plcc
+
+def plot_correlation(y_gt, y_pred, num, srocc, cross_dataset=None):
+    '''Plot SROCC of predicted and ground-truth scores
+    '''
+    
+    if cross_dataset == 'clive':
+        y_pred *= 100
+        file_path = f'plots/{num}_{abs(srocc):.4f}_{cross_dataset}.png'
+    elif cross_dataset == 'koniq10k':
+        y_pred *= 4
+        y_pred += 1
+        file_path = f'plots/{num}_{abs(srocc):.4f}_{cross_dataset}.png'
+    else:
+        file_path = f'plots/{num}_{abs(srocc):.4f}.png'
+        
+    # Plot the correlation between ground-truth and predicted scores             
+    sns.set(style='darkgrid')
+    scatter_plot = sns.relplot(x=y_gt.squeeze(), y=y_pred.squeeze(),
+                               kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
+                               xlabel='Ground-truth MOS', ylabel='Predicted Score');
+     
+    plt.close()
+    scatter_plot.savefig(file_path)
+
+def synthetic_dataset_regression(X, y, dist_per_ref, Xc=None, yc=None, dataset='kadid0k',
+                                 cross_dataset=None, regression_method='svr'):
+    '''Train a regressor Using the image/video features and their corresponding scores from
+       a synthetically distorted IQA/VQA dataset, predict the scores of test data. 
        Finally calculate the SROCC & PLCC.
        
-    :param X: an array of video level features of all videos in the dataset
-    :param y: an array scores of all videos in the dataset
+    :param X: an array of features of all images/videos in the dataset
+    :param y: an array scores of all images/videos in the dataset
     :param regression_method: 'svr' for SVR or 'nn' for multi layer neural network
     :return: SROCC_coef, SROCC_p, PLCC
     '''
-    
-    video_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_seqs.txt'
-    dmos_data = '/media/amirh/Programs/Projects/VQA_Datasets/LIVE_SD/live_video_quality_data.txt'
-    # Get the list of video sequences
-    video_list, _ = dh.get_live_info(video_data, dmos_data)
-    
+            
     # Turn y into a 2D array to match StandardScalar() input
     y = np.array(y).reshape(-1, 1)
     
-    # There are 10 pristine videos in LIVE VQA dataset and 15 different distorted videos are made from each,
+    # There are some pristine images/videos in a synthetic dataset and len() different distorted videos are made from each,
     # totally 150 videos. Divide the video features into 10 groups in orders, so that the same group will not
     # appear in two different folds
-    groups = np.empty(150, dtype='u1')
-    video_groups = []
+    groups = np.empty(len(y), dtype='u1')
     
-    for i in range(0, 150, 15):
-        groups[i: i + 15] = i / 15
-        # Add the name of the first video in each group
-        video_groups.append(video_list[i])
+    for i in range(0, len(y), dist_per_ref):
+        groups[i: i + dist_per_ref] = i / dist_per_ref
                
     gss = GroupShuffleSplit(n_splits=50, train_size=0.8)
     
     SROCC_coef, SROCC_p, PLCC = [], [], []
     
+    # if cross dataset validation is required
+    if Xc is not None:
+        CROSS_SROCC, CROSS_PLCC = [], []
+        ycn = normalize_cross_scores(cross_dataset, yc)
+    else:
+        CROSS_SROCC, CROSS_PLCC = None, None
+   
     for train_idx, test_idx in gss.split(X, y, groups):
         # Split train validation set
         X_train, y_train = X[train_idx], y[train_idx]
         X_test, y_test = X[test_idx], y[test_idx]
-        
-        # print the video names fallen into test split
-        for group in set(groups[test_idx]):
-            print(f'video group {group} = {video_groups[group]}', end=',  ')
-        
+
         # Feature scaling
         sc_X = StandardScaler()
         sc_y = StandardScaler()
@@ -124,34 +183,37 @@ def live_dataset_regression(X, y, regression_method='svr'):
 
         # Predict the scores for X_test videos features
         y_pred = regressor.predict(X_test)
-        # Turn y_pred into a 2D array to match StandardScalar() input
-        y_pred = y_pred.reshape(-1, 1)
         
-        y_test = y_test.reshape(-1, 1)
+        srocc, p, plcc = calc_correlation(y_test, y_pred, sc_y)
         
-        # Inverse transform the predicted values to get the real values
-        y_pred = sc_y.inverse_transform(y_pred)
-        
-        # Calculate the Spearman rank-order correlation
-        coef, p = spearmanr(y_test.squeeze(), y_pred.squeeze())
-        
-        # Calculate the Pearson correlation
-        corr, _ = pearsonr(y_test.squeeze(), y_pred.squeeze())
-        
-        SROCC_coef.append(coef)
+        SROCC_coef.append(srocc)
         SROCC_p.append(p)
-        PLCC.append(corr)
+        PLCC.append(plcc)
         
-        print(f'\nSpearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}')
-        print('*' * 50)
+        # Plot the correlation between ground-truth and predicted scores             
+        plot_correlation(y_test, y_pred, len(SROCC_coef), srocc)
+            
+        # if cross dataset validation is required
+        if Xc is not None:
+            Xcs = sc_X.transform(Xc)
+
+            yc_pred = regressor.predict(Xcs)
+
+            srocc, _, plcc = calc_correlation(ycn, yc_pred, sc_y, dataset, '*')
+            
+            CROSS_SROCC.append(srocc)
+            CROSS_PLCC.append(plcc)
+
+            # Plot the correlation between ground-truth and predicted scores             
+            plot_correlation(yc, yc_pred, len(SROCC_coef), srocc, cross_dataset)
         
     return SROCC_coef, SROCC_p, PLCC
         
         
         
-def authentic_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='koniq10k', cross_dataset=None):
-    '''Train an SVR Using the video level features and their corresponding scores from
-       Konvid1k VQA dataset, predict the scores of test videos using the trained SVR. 
+def authentic_dataset_regression(X, y, Xc=None, yc=None, dataset='koniq10k', cross_dataset=None, regression_method='svr'):
+    '''Train a regressor Using the features and their corresponding scores from
+       an authentically distorted IQA/VQA dataset, predict the scores of test data. 
        Finally calculate the SROCC & PLCC.
     
     :param X: an array of video level features of all videos in the dataset
@@ -167,16 +229,10 @@ def authentic_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr'
     # if cross dataset validation is required
     if Xc is not None:
         CROSS_SROCC, CROSS_PLCC = [], []
-        # Normalize the cross dataset scores
-        if cross_dataset == 'clive':
-            ycs = yc / 100.0
-        elif cross_dataset == 'koniq10k':
-            ycs = yc - 1
-            ycs /= 4.0
-        
-    dataset_corr_delim = '-' * 70 + '\n'
-    cross_corr_delim = '*' * 80 + '\n'
-    
+        ycn = normalize_cross_scores(cross_dataset, yc)
+    else:
+        CROSS_SROCC, CROSS_PLCC = None, None
+  
     # Repeat K-fold cross validation 10 times
     for _ in range(20):
         
@@ -209,28 +265,14 @@ def authentic_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr'
             # Predict the scores for X_test videos features
             y_pred = regressor.predict(X_test)
             
-            # Turn y_pred into a 2D array to match StandardScalar() input
-            y_pred = y_pred.reshape(-1, 1)
-            y_test = y_test.reshape(-1, 1)
-            # Reverse the transform to get the real y_pred
-            y_pred = sc_y.inverse_transform(y_pred)
-            
-            # Calculate the Spearman rank-order correlation
-            coef, p = spearmanr(y_test.squeeze(), y_pred.squeeze())
-
-            # Calculate the Pearson correlation
-            corr, _ = pearsonr(y_test.squeeze(), y_pred.squeeze())
+            srocc, p, plcc = calc_correlation(y_test, y_pred, sc_y)
           
-            SROCC_coef.append(coef)
+            SROCC_coef.append(srocc)
             SROCC_p.append(p)
-            PLCC.append(corr)
-                        
-            # print(f'Target Mos = {y_test.squeeze()}')
-            # print(f'Predicted Mos = {y_pred.squeeze()}')
-            text = f'Spearman correlation = {coef:.4f} with p = {p:.4f},  Pearson correlation = {corr:.4f}\n'
-            with open('correlation.txt', 'a') as writer:
-                writer.write(text)
-                writer.write(dataset_corr_delim)
+            PLCC.append(plcc)
+            
+            # Plot the correlation between ground-truth and predicted scores             
+            plot_correlation(y_test, y_pred, len(SROCC_coef), srocc)
             
             # if cross dataset validation is required
             if Xc is not None:
@@ -238,48 +280,14 @@ def authentic_dataset_regression(X, y, Xc=None, yc=None, regression_method='svr'
                 
                 yc_pred = regressor.predict(Xcs)
                 
-                # Turn y_pred into a 2D array to match StandardScalar() input
-                yc_pred = yc_pred.reshape(-1, 1)
-                # Reverse the transform to get the real yc_pred
-                yc_pred = sc_y.inverse_transform(yc_pred)
+                srocc, _, plcc = calc_correlation(ycn, yc_pred, sc_y, dataset, '*')
                 
-                if dataset == 'koniq10k':
-                    yc_pred -= 1
-                    yc_pred /= 4.0
-                elif dataset == 'clive':
-                    yc_pred /= 100.0
-              
-                # Calculate the Spearman rank-order correlation
-                coef_c, pc = spearmanr(ycs.squeeze(), yc_pred.squeeze())
-                # Calculate the Pearson correlation
-                corr_c, _ = pearsonr(ycs.squeeze(), yc_pred.squeeze())
-                
-                CROSS_SROCC.append(coef_c)
-                CROSS_PLCC.append(corr_c)
-                
-                text = f'Cross Dataset SROCC = {coef_c:.4f} with p = {pc:.4f}, Cross Dataset PLCC = {corr_c:.4f}\n'
-                with open('correlation.txt', 'a') as writer:
-                    writer.write(text)
-                    writer.write(cross_corr_delim)
-                    
+                CROSS_SROCC.append(srocc)
+                CROSS_PLCC.append(plcc)
             
                 # Plot the correlation between ground-truth and predicted scores             
-                sns.set(style='darkgrid')
-                scatter_plot = sns.relplot(x=yc.squeeze(), y=yc_pred.squeeze() * 100,
-                                           kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
-                                           xlabel='Cross Dataset Score', ylabel='Predicted Score');
-                plt.close()
-                scatter_plot.savefig(f'plots/{len(SROCC_coef)}_{abs(coef):.4f}_c.png')
-                
-            # Plot the correlation between ground-truth and predicted scores             
-            sns.set(style='darkgrid')
-            scatter_plot = sns.relplot(x=y_test.squeeze(), y=y_pred.squeeze(),
-                                       kind='scatter', height=7, aspect=1.2, palette='coolwarm').set(
-                                       xlabel='Ground-truth MOS', ylabel='Predicted Score');
-            
-            plt.close()
-            scatter_plot.savefig(f'plots/{len(SROCC_coef)}_{abs(coef):.4f}.png')
-        
+                plot_correlation(yc, yc_pred, len(SROCC_coef), srocc, cross_dataset)
+                                
     return SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC
     
         
@@ -292,19 +300,29 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='koniq10
     :param yc: an array scores of all videos in the cross dataset
     :param regression_method: 'svr' for SVR or 'nn' for multi layer neural network
     '''
+    
+    dataset = dataset.lower()
+    # Total number of distorted images/videos per each reference for synthetic datasets
+    synth_dist_per_ref = {'tid2013': 120,
+                          'kadid10k': 125}
+    
     # assert bool(Xc) == bool(cross_dataset), 'either features value or name of the cross dataset has not been provided.'
     
     print(f'{X.shape = } {y.shape = }')
     if Xc is not None:
         print(f'{Xc.shape = } {yc.shape = }')
     
-    if dataset.lower() == 'live':
-        SROCC_coef, SROCC_p, PLCC = live_dataset_regression(X, y, regression_method='svr')
+    if dataset in synth_dist_per_ref:
+        SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC = synthetic_dataset_regression(X, y,
+                                                                                          synth_dist_per_ref[dataset],
+                                                                                          Xc, yc, dataset,
+                                                                                          cross_dataset,
+                                                                                          regression_method)
     else:
-        SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC= authentic_dataset_regression(X, y, Xc, yc,
-                                                                                        regression_method,
-                                                                                        dataset, 
-                                                                                        cross_dataset)
+        SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC = authentic_dataset_regression(X, y, Xc, yc,
+                                                                                          dataset, 
+                                                                                          cross_dataset,
+                                                                                          regression_method)
     with open('correlation.txt', 'a') as writer:    
     # set the precision of the output for numpy arrays & suppress the use of scientific notation for small numbers
         with np.printoptions(precision=4, suppress=True):
