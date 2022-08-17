@@ -143,6 +143,24 @@ def get_koniq10k_info(file_path):
     
     return images, mos
 
+def get_kadid10k_info(file_path):
+    '''Get kadid10k IQA dataset annotation file and extract image file names and their
+       corresponding DMOS ranging from 1 to 5
+       
+    :param file_path: the path to dataset info file
+    :return: image names and their MOS
+    '''
+    
+    # Read the dataframe of the dataset which includes the images' names and their MOS
+    df = pd.read_csv(file_path)
+    dmos = df.get('dmos').values
+    images = df.get('dist_img').values
+    
+    # Convert the ndarray to a list of strings
+    images = [str(image) for image in images]
+    
+    return images, dmos
+
 def get_clive_info(image_file: str, mos_file: str):
     '''Get CLIVE in the wild IQA dataset annotation files and extract image file names and their
        corresponding MOS
@@ -180,6 +198,8 @@ def get_imageset_info(dataset='koniq10k'):
         images, scores = get_koniq10k_info(annotations_file_1)
     elif dataset == 'clive':
         images, scores = get_clive_info(annotations_file_1, annotations_file_2)
+    elif dataset == 'kadid10k':
+        images, scores = get_kadid10k_info(annotations_file_1)
        
     return images, scores, images_path
 

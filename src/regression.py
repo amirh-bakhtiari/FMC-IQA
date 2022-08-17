@@ -67,7 +67,7 @@ def normalize_cross_scores(cross_dataset, yc):
     # Normalize the cross dataset scores
     if cross_dataset == 'clive':
         ycn = yc / 100.0
-    elif cross_dataset == 'koniq10k':
+    elif cross_dataset == 'koniq10k' or dataset == 'kadid10k':
         ycn = yc - 1
         ycn /= 4.0
     
@@ -82,7 +82,7 @@ def calc_correlation(y_gt, y_pred, sc, dataset=None, delimiter='-'):
     y_pred = sc.inverse_transform(y_pred)
     
     # If dataset name has been given, normalize the results to compare with the cross dataset scores
-    if dataset == 'koniq10k':
+    if dataset == 'koniq10k' or dataset == 'kadid10k':
         y_pred -= 1
         y_pred /= 4.0
     elif dataset == 'clive':
@@ -108,7 +108,7 @@ def plot_correlation(y_gt, y_pred, num, srocc, cross_dataset=None):
     if cross_dataset == 'clive':
         y_pred *= 100
         file_path = f'plots/{num}_{abs(srocc):.4f}_{cross_dataset}.png'
-    elif cross_dataset == 'koniq10k':
+    elif cross_dataset == 'koniq10k' or dataset == 'kadid10k':
         y_pred *= 4
         y_pred += 1
         file_path = f'plots/{num}_{abs(srocc):.4f}_{cross_dataset}.png'
@@ -189,10 +189,7 @@ def synthetic_dataset_regression(X, y, dist_per_ref, Xc=None, yc=None, dataset='
         SROCC_coef.append(srocc)
         SROCC_p.append(p)
         PLCC.append(plcc)
-        
-        # Plot the correlation between ground-truth and predicted scores             
-        plot_correlation(y_test, y_pred, len(SROCC_coef), srocc)
-            
+                            
         # if cross dataset validation is required
         if Xc is not None:
             Xcs = sc_X.transform(Xc)
@@ -207,10 +204,11 @@ def synthetic_dataset_regression(X, y, dist_per_ref, Xc=None, yc=None, dataset='
             # Plot the correlation between ground-truth and predicted scores             
             plot_correlation(yc, yc_pred, len(SROCC_coef), srocc, cross_dataset)
         
-    return SROCC_coef, SROCC_p, PLCC
+        # Plot the correlation between ground-truth and predicted scores             
+        plot_correlation(y_test, y_pred, len(SROCC_coef), srocc)
         
-        
-        
+    return SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC
+
 def authentic_dataset_regression(X, y, Xc=None, yc=None, dataset='koniq10k', cross_dataset=None, regression_method='svr'):
     '''Train a regressor Using the features and their corresponding scores from
        an authentically distorted IQA/VQA dataset, predict the scores of test data. 
@@ -270,10 +268,7 @@ def authentic_dataset_regression(X, y, Xc=None, yc=None, dataset='koniq10k', cro
             SROCC_coef.append(srocc)
             SROCC_p.append(p)
             PLCC.append(plcc)
-            
-            # Plot the correlation between ground-truth and predicted scores             
-            plot_correlation(y_test, y_pred, len(SROCC_coef), srocc)
-            
+                    
             # if cross dataset validation is required
             if Xc is not None:
                 Xcs = sc_X.transform(Xc)
@@ -287,6 +282,9 @@ def authentic_dataset_regression(X, y, Xc=None, yc=None, dataset='koniq10k', cro
             
                 # Plot the correlation between ground-truth and predicted scores             
                 plot_correlation(yc, yc_pred, len(SROCC_coef), srocc, cross_dataset)
+            
+            # Plot the correlation between ground-truth and predicted scores             
+            plot_correlation(y_test, y_pred, len(SROCC_coef), srocc)
                                 
     return SROCC_coef, SROCC_p, PLCC, CROSS_SROCC, CROSS_PLCC
     
