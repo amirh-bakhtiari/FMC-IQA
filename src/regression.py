@@ -6,8 +6,8 @@ from scipy.stats.mstats import pearsonr
 from sklearn.model_selection import KFold
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
-# from sklearn.svm import SVR
-from sklearnex.svm import SVR
+from sklearn.svm import SVR
+# from sklearnex.svm import SVR
 
 import DatasetHandler as dh
 
@@ -108,7 +108,7 @@ def plot_correlation(y_gt, y_pred, num, srocc, cross_dataset=None):
     if cross_dataset == 'clive':
         y_pred *= 100
         file_path = f'plots/{num}_{abs(srocc):.4f}_{cross_dataset}.png'
-    elif cross_dataset == 'koniq10k' or dataset == 'kadid10k':
+    elif cross_dataset == 'koniq10k' or cross_dataset == 'kadid10k':
         y_pred *= 4
         y_pred += 1
         file_path = f'plots/{num}_{abs(srocc):.4f}_{cross_dataset}.png'
@@ -145,9 +145,9 @@ def synthetic_dataset_regression(X, y, dist_per_ref, Xc=None, yc=None, dataset='
     groups = np.empty(len(y), dtype='u1')
     
     for i in range(0, len(y), dist_per_ref):
-        groups[i: i + dist_per_ref] = i / dist_per_ref
+        groups[i: i + dist_per_ref] = i // dist_per_ref
                
-    gss = GroupShuffleSplit(n_splits=50, train_size=0.8)
+    gss = GroupShuffleSplit(n_splits=100, train_size=0.8)
     
     SROCC_coef, SROCC_p, PLCC = [], [], []
     

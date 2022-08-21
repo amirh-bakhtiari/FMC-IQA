@@ -31,7 +31,7 @@ import VideoUtility as vu
 ```
 
 ```{python}
-def load_image(path, device, frame_size, center_crop, min_size=510):
+def load_image(path, device, frame_size, center_crop, min_size=520):
     '''Load in and transform an image, then move it to the specified device ('cpu' or 'cuda')
     '''
     
@@ -128,10 +128,10 @@ def init_iqa(model_name, vqa_dataset, cross_dataset=None):
         # frame_size, center_crop = 534, 480  # Efficientnet_v2_M
         # Specify the layers to get style features from EfficientNet B4
         layers = {
-                  'features.3.3.add': 'features.3.3.add',
+                  # 'features.3.3.add': 'features.3.3.add',
                   'features.4.4.add': 'features.4.4.add',
-                  'features.5.5.add': 'features.5.5.add',
-                  'avgpool': 'avgpool',
+                  # 'features.5.5.add': 'features.5.5.add',
+                  # 'avgpool': 'avgpool',
                   # 'flatten': 'flatten'
                   }
         
@@ -151,7 +151,7 @@ def main():
     # Initialize vqa
     ffeats_extractor, device, dataset, cross_dataset, frame_size,\
                                                         center_crop = init_iqa('efficientnet',
-                                                                               'tid2013',)
+                                                                               'kadid10k',)
     # Get video level features by pooling frame level features
     images_features, scores = imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop)
     
