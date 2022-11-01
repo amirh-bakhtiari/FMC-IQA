@@ -193,7 +193,20 @@ def get_clive_info(image_file: str, mos_file: str):
     
     return images, mos
     
-
+def get_scid_info(file_path):
+    '''Get SCID dataset annotation files and extract image file names and their
+       corresponding MOS
+    '''
+    with open(file_path, 'r') as reader:
+        # Get the name and MOS of images
+        img_mos = reader.read().strip().split('\n')
+    
+    images = [item.split()[1] + '.bmp' for item in img_mos]
+    mos = [float(item.split()[2]) for item in img_mos]
+    mos = np.array(mos)
+    
+    return images, mos
+    
 def get_imageset_info(dataset='koniq10k'):
     '''Given the name of the image dataset, get the list of respective image names and their scores,
        and set the preprocessing method.
@@ -220,6 +233,8 @@ def get_imageset_info(dataset='koniq10k'):
         images, scores = get_kadid10k_info(annotations_file_1)
     elif dataset == 'tid2013':
         images, scores = get_tid2013_info(annotations_file_1)
+    elif dataset == 'scid':
+        images, scores = get_scid_info(annotations_file_1)
        
     return images, scores, images_path
 

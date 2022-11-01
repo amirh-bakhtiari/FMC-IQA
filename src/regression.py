@@ -302,7 +302,8 @@ def regression(X, y, Xc=None, yc=None, regression_method='svr', dataset='koniq10
     dataset = dataset.lower()
     # Total number of distorted images/videos per each reference for synthetic datasets
     synth_dist_per_ref = {'tid2013': 120,
-                          'kadid10k': 125}
+                          'kadid10k': 125,
+                          'scid': 45}
     
     # assert bool(Xc) == bool(cross_dataset), 'either features value or name of the cross dataset has not been provided.'
     

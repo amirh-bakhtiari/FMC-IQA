@@ -128,9 +128,10 @@ def init_iqa(model_name, vqa_dataset, cross_dataset=None):
         # frame_size, center_crop = 534, 480  # Efficientnet_v2_M
         # Specify the layers to get style features from EfficientNet B4
         layers = {
-                  # 'features.3.3.add': 'features.3.3.add',
+                  'features.2.2.add': 'features.2.2.add',  
+                  'features.3.3.add': 'features.3.3.add',
                   'features.4.4.add': 'features.4.4.add',
-                  # 'features.5.5.add': 'features.5.5.add',
+                  'features.5.5.add': 'features.5.5.add',
                   # 'avgpool': 'avgpool',
                   # 'flatten': 'flatten'
                   }
@@ -151,7 +152,7 @@ def main():
     # Initialize vqa
     ffeats_extractor, device, dataset, cross_dataset, frame_size,\
                                                         center_crop = init_iqa('efficientnet',
-                                                                               'kadid10k',)
+                                                                               'scid')
     # Get video level features by pooling frame level features
     images_features, scores = imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop)
     
@@ -170,6 +171,14 @@ def main():
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
     main()
+```
+
+```{python}
+
+```
+
+```{python}
+
 ```
 
 ```{python}

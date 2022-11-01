@@ -19,3 +19,8 @@ clive:
   annotations_file_1: /media/amirh/Programs/Projects/IQA_Datasets/CLIVE/ChallengeDB_release/Data/AllImages_release.mat
   annotations_file_2: /media/amirh/Programs/Projects/IQA_Datasets/CLIVE/ChallengeDB_release/Data/AllMOS_release.mat
   img_dir: /media/amirh/Programs/Projects/IQA_Datasets/CLIVE/ChallengeDB_release/Images
+# SCID, Screen content images
+scid:
+  annotations_file_1: /media/amirh/Programs/Projects/IQA_Datasets/SCID/MOS_SCID_UTF.txt
+  annotations_file_2: null
+  img_dir: /media/amirh/Programs/Projects/IQA_Datasets/SCID/DistortedSCIs
