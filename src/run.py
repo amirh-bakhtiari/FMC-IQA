@@ -1,19 +1,19 @@
----
-jupyter:
-  jupytext:
-    formats: ipynb,Rmd
-    text_representation:
-      extension: .Rmd
-      format_name: rmarkdown
-      format_version: '1.2'
-      jupytext_version: 1.14.0
-  kernelspec:
-    display_name: Python 3 (ipykernel)
-    language: python
-    name: python3
----
+# ---
+# jupyter:
+#   jupytext:
+#     formats: ipynb,py:light
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.14.0
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
+# ---
 
-```{python tags=c()}
+# + tags=[]
 import torch
 import numpy as np
 from torchvision import models
@@ -28,9 +28,10 @@ import pooling
 import regression as reg
 import SFVQA as sfv
 import VideoUtility as vu
-```
 
-```{python}
+
+# -
+
 def load_image(path, device, frame_size, center_crop, min_size=520):
     '''Load in and transform an image, then move it to the specified device ('cpu' or 'cuda')
     '''
@@ -52,9 +53,8 @@ def load_image(path, device, frame_size, center_crop, min_size=520):
     image = transform(image)[:3, :, :].unsqueeze(0).to(device)
     
     return image
-```
 
-```{python}
+
 def imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop):
     '''Get images features in a dataset
     
@@ -89,9 +89,9 @@ def imageset_features(ffeats_extractor, device, dataset, frame_size, center_crop
         
     
     return np.array(images_features), scores
-```
 
-```{python tags=c()}
+
+# + tags=[]
 def init_iqa(model_name, vqa_dataset, cross_dataset=None):
     ''' Set the frame feature extractor model, VQA dataset and frame size
     
@@ -142,9 +142,10 @@ def init_iqa(model_name, vqa_dataset, cross_dataset=None):
     ffeats_extractor, _ = sfv.set_feats_extractor(device, model_name, layers)
                 
     return ffeats_extractor, device, vqa_dataset, cross_dataset, frame_size, center_crop   
-```
 
-```{python}
+
+# -
+
 # Entry point of the program
 def main():
     '''Run the whole process of VQA
@@ -165,38 +166,24 @@ def main():
         
     # Train a regressor using video level features and indicate how well it predicts the scores
     reg.regression(images_features, scores, c_images_feats, c_scores, 'svr', dataset, cross_dataset)               
-```
 
-```{python tags=c()}
+
+# + tags=[]
 # Run the main function if current file is the script, not a module
 if __name__ == "__main__":
     main()
-```
+# -
 
-```{python}
 
-```
 
-```{python}
 
-```
 
-```{python}
 
-```
 
-```{python}
 
-```
 
-```{python}
 
-```
 
-```{python}
 
-```
 
-```{python}
 
-```
